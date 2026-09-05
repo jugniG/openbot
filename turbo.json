@@ -1,0 +1,48 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "stream-with-experimental-timestamps",
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "build/**",
+        ".vercel/**",
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**"
+      ]
+    },
+    "test": {
+      "outputs": [
+        "coverage/**"
+      ],
+      "dependsOn": []
+    },
+    "lint": {
+      "dependsOn": [
+        "^build",
+        "^lint"
+      ]
+    },
+    "check-types": {
+      "dependsOn": [
+        "^build",
+        "^check-types"
+      ]
+    },
+    "dev": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

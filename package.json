@@ -1,0 +1,43 @@
+{
+  "name": "kitchen-sink",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "clean": "turbo run clean",
+    "dev": "turbo run dev",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "check-types": "turbo run check-types",
+    "db:generate": "npm run --workspace=driz db:generate",
+    "db:migrate": "npm run --workspace=driz db:migrate"
+  },
+  "devDependencies": {
+    "@jridgewell/sourcemap-codec": "1.6.0",
+    "prettier": "^3.6.0",
+    "turbo": "^2.10.12",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "11.13.0"
+    }
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "@jridgewell/gen-mapping": "0.3.13",
+    "@jridgewell/remapping": "2.3.5",
+    "@jridgewell/resolve-uri": "3.1.2",
+    "@jridgewell/trace-mapping": "0.3.31",
+    "confbox": "0.3.0",
+    "csstype": "3.2.3",
+    "magic-string": "1.2.3"
+  }
+}

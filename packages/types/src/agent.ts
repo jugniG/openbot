@@ -7,9 +7,21 @@ export const ToolDefinitionSchema = z.object({
   parameters: z.record(z.any()).optional().default({}),
   category: z.enum(["search", "retrieval", "verification", "code", "data", "utility"]),
   isMock: z.boolean().default(false),
+  requiredEnvs: z.array(z.string()).optional(),
 });
 
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
+
+export const AgentEnvVarSchema = z.object({
+  key: z.string(),
+  maskedValue: z.string(),
+  encryptedValue: z.string(),
+  hash: z.string().optional(),
+  requiredBy: z.array(z.string()).optional().default([]),
+  updatedAt: z.string().optional(),
+});
+
+export type AgentEnvVar = z.infer<typeof AgentEnvVarSchema>;
 
 export const MemoryConfigSchema = z.object({
   type: z.enum(["buffer", "vector", "episodic", "state_kv"]),
@@ -19,10 +31,23 @@ export const MemoryConfigSchema = z.object({
 
 export type MemoryConfig = z.infer<typeof MemoryConfigSchema>;
 
+export const PipelineNodeTypeSchema = z.enum([
+  "trigger",
+  "tool",
+  "llm",
+  "condition",
+  "action",
+  "custom_code",
+]);
+
+export type PipelineNodeType = z.infer<typeof PipelineNodeTypeSchema>;
+
 export const PipelineNodeSchema = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
+  type: PipelineNodeTypeSchema.optional().default("tool"),
+  parameters: z.record(z.any()).optional().default({}),
   systemPrompt: z.string(),
   assignedTools: z.array(z.string()).default([]),
   memory: MemoryConfigSchema.optional(),
@@ -47,6 +72,7 @@ export const ChatMessageSchema = z.object({
   content: z.string(),
   timestamp: z.string().optional(),
   quickSuggestions: z.array(z.string()).optional(),
+  requestedEnvs: z.array(z.string()).optional(),
 });
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -63,6 +89,8 @@ export const AgentSpecSchema = z.object({
   edges: z.array(PipelineEdgeSchema),
   availableTools: z.array(ToolDefinitionSchema),
   messages: z.array(ChatMessageSchema).optional(),
+  envs: z.record(AgentEnvVarSchema).optional(),
+  requiredEnvs: z.array(z.string()).optional(),
   createdAt: z.string(),
 });
 

@@ -95,3 +95,72 @@ export async function callGeminiJSON<T>(
 
   throw lastError || new Error("Failed to call Google AI Studio Gemini after retries and model fallbacks.");
 }
+
+export async function callGeminiText(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<string> {
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_AI_STUDIO_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      "GEMINI_API_KEY is not set."
+    );
+  }
+
+  const primaryModel = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+  const candidateModels = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)];
+
+  let lastError: any = null;
+
+  for (const model of candidateModels) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const requestBody = {
+          system_instruction: {
+            parts: [{ text: systemPrompt }],
+          },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: userPrompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.2,
+          },
+        };
+
+        const res = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (res.status === 503 || res.status === 429) {
+          await delay(1500);
+          continue;
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Google AI Studio error (${res.status}) on ${model}: ${errText}`);
+        }
+
+        const data = await res.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) return rawText.trim();
+      } catch (err: any) {
+        lastError = err;
+        await delay(1000);
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to call Gemini.");
+}

@@ -44,8 +44,8 @@ Optimization Strategy:
 
 Output Schema:
 {
-  "architectureSummary": "string (e.g. 'Planner -> Worker -> Verifier -> Synthesizer')",
-  "newNodes": [ array of PipelineNode objects with id, name, role, systemPrompt, assignedTools, stepIndex, color ],
+  "architectureSummary": "string (e.g. 'Trigger -> Worker -> Verifier -> Action')",
+  "newNodes": [ array of PipelineNode objects with id, name, role, type ('trigger'|'tool'|'llm'|'condition'|'action'|'custom_code'), parameters, systemPrompt, assignedTools, stepIndex, color ],
   "newEdges": [ array of PipelineEdge objects with id, source, target, label ],
   "mutationSummary": "string (executive summary of mutations)",
   "topologyDiffs": [ { "action": "added_node" | "removed_node" | "added_edge" | "removed_edge", "description": "string" } ],
@@ -63,13 +63,24 @@ Proposed Fixes: ${JSON.stringify(diagnosis.proposedMutations)}`;
 
   const res = await callGeminiJSON<LLMOptimizationResponse>(systemPrompt, userPrompt);
 
+  const rawNodes = Array.isArray(res.newNodes) ? res.newNodes : currentAgent.nodes;
+  const newNodes = rawNodes.map((n: any, idx: number) => ({
+    ...n,
+    id: n.id || `node-opt-${idx}`,
+    type: n.type || currentAgent.nodes.find((cn) => cn.id === n.id)?.type || "tool",
+    parameters: n.parameters || currentAgent.nodes.find((cn) => cn.id === n.id)?.parameters || {},
+    systemPrompt: n.systemPrompt || n.role || "",
+    assignedTools: Array.isArray(n.assignedTools) ? n.assignedTools : [],
+    stepIndex: typeof n.stepIndex === "number" ? n.stepIndex : idx,
+  }));
+
   const improvedAgent: AgentSpec = {
     ...currentAgent,
     version: newVersion,
     versionTag: newVersionTag,
-    architectureSummary: res.architectureSummary,
-    nodes: res.newNodes,
-    edges: res.newEdges,
+    architectureSummary: res.architectureSummary || currentAgent.architectureSummary,
+    nodes: newNodes,
+    edges: Array.isArray(res.newEdges) ? res.newEdges : currentAgent.edges,
     availableTools,
   };
 
@@ -102,16 +113,29 @@ export async function refineAgentWithFollowUp(
   const newVersionTag = `v${newVersion}`;
 
   const systemPrompt = `You are the Lead Agent Architect inside OpenBot (Automated Agent Engineering Factory).
-The user is providing an incremental modification or refinement instruction for an existing agent.
-Your role: Mutate and refine the agent's architecture, nodes, tools, and system prompts to fulfill the user's new instruction while preserving existing capabilities.
+The user is providing an incremental modification or refinement instruction for an existing agent (e.g., changing schedule, changing recipient email, changing search filters).
+Your role: Mutate and refine the agent's architecture, nodes, tools, parameters, and system prompts to fulfill the user's new instruction while preserving existing capabilities.
+
+Node Types & Primitives:
+- "trigger": Execution trigger (parameters: { triggerType: "schedule" | "webhook" | "manual", schedule?: string, cron?: string, event?: string })
+- "tool": External API or scraper (parameters: { toolId: string, queries?: string[] })
+- "llm": AI intelligence (parameters: { prompt: string, criteria?: string })
+- "condition": Logic routing
+- "action": Output delivery (parameters: { channel: "email", recipient?: string, subject?: string })
+- "custom_code": Custom Python/Node execution
+
+Guidelines:
+1. If the user specifies an email address (e.g. "change email to sahil@example.com"), locate or add the "action" node and update its "parameters.recipient".
+2. If the user specifies a schedule/interval change (e.g. "every 12hr", "daily"), update the "trigger" node's "parameters.schedule". If the user asks to run on-demand or remove the interval, set parameters.triggerType to "manual" or remove the schedule parameter.
+3. Preserve all other functional nodes and edges.
 
 Available Tools in Registry:
 ${JSON.stringify(availableTools.map((t) => ({ id: t.id, name: t.name, description: t.description })))}
 
 Output Schema:
 {
-  "architectureSummary": "string (e.g. 'Planner -> Worker -> Verifier -> Notifier')",
-  "newNodes": [ array of PipelineNode objects with id, name, role, systemPrompt, assignedTools, stepIndex, color ],
+  "architectureSummary": "string (e.g. 'Trigger -> Worker -> Verifier -> Notifier')",
+  "newNodes": [ array of PipelineNode objects with id, name, role, type ('trigger'|'tool'|'llm'|'condition'|'action'|'custom_code'), parameters, systemPrompt, assignedTools, stepIndex, color ],
   "newEdges": [ array of PipelineEdge objects with id, source, target, label ],
   "mutationSummary": "string (executive summary of mutations fulfilling user request)",
   "topologyDiffs": [ { "action": "added_node" | "removed_node" | "added_edge" | "removed_edge", "description": "string" } ],
@@ -129,13 +153,24 @@ ${updatedMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
 
   const res = await callGeminiJSON<LLMOptimizationResponse>(systemPrompt, userPrompt);
 
+  const rawNodes = Array.isArray(res.newNodes) ? res.newNodes : currentAgent.nodes;
+  const newNodes = rawNodes.map((n: any, idx: number) => ({
+    ...n,
+    id: n.id || `node-refine-${idx}`,
+    type: n.type || currentAgent.nodes.find((cn) => cn.id === n.id)?.type || "tool",
+    parameters: n.parameters || currentAgent.nodes.find((cn) => cn.id === n.id)?.parameters || {},
+    systemPrompt: n.systemPrompt || n.role || "",
+    assignedTools: Array.isArray(n.assignedTools) ? n.assignedTools : [],
+    stepIndex: typeof n.stepIndex === "number" ? n.stepIndex : idx,
+  }));
+
   const improvedAgent: AgentSpec = {
     ...currentAgent,
     version: newVersion,
     versionTag: newVersionTag,
-    architectureSummary: res.architectureSummary,
-    nodes: res.newNodes,
-    edges: res.newEdges,
+    architectureSummary: res.architectureSummary || currentAgent.architectureSummary,
+    nodes: newNodes,
+    edges: Array.isArray(res.newEdges) ? res.newEdges : currentAgent.edges,
     availableTools,
     messages: updatedMessages,
   };

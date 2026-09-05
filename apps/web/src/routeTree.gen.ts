@@ -18,6 +18,7 @@ import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dash
 import { Route as ApiSplatRouteImport } from './routes/api.$'
 import { Route as OffersFormIdRouteImport } from './routes/offers/$formId'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as StudioAgentIdRouteImport } from './routes/studio/$agentId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
 import { Route as ApiWebhookDodoRouteImport } from './routes/api/webhook/dodo'
@@ -68,6 +69,11 @@ const StudioIndexRoute = StudioIndexRouteImport.update({
   path: '/studio/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudioAgentIdRoute = StudioAgentIdRouteImport.update({
+  id: '/studio/$agentId',
+  path: '/studio/$agentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof ProtectedDashboardRoute
   '/api/$': typeof ApiSplatRoute
   '/offers/$formId': typeof OffersFormIdRoute
+  '/studio/$agentId': typeof StudioAgentIdRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof ProtectedDashboardRoute
   '/api/$': typeof ApiSplatRoute
   '/offers/$formId': typeof OffersFormIdRoute
+  '/studio/$agentId': typeof StudioAgentIdRoute
   '/studio': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/api/$': typeof ApiSplatRoute
   '/offers/$formId': typeof OffersFormIdRoute
+  '/studio/$agentId': typeof StudioAgentIdRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/api/$'
     | '/offers/$formId'
+    | '/studio/$agentId'
     | '/studio/'
     | '/api/auth/$'
     | '/api/rpc/$'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/api/$'
     | '/offers/$formId'
+    | '/studio/$agentId'
     | '/studio'
     | '/api/auth/$'
     | '/api/rpc/$'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/_protected/dashboard'
     | '/api/$'
     | '/offers/$formId'
+    | '/studio/$agentId'
     | '/studio/'
     | '/api/auth/$'
     | '/api/rpc/$'
@@ -199,6 +211,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   ApiSplatRoute: typeof ApiSplatRoute
   OffersFormIdRoute: typeof OffersFormIdRoute
+  StudioAgentIdRoute: typeof StudioAgentIdRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiRpcSplatRoute: typeof ApiRpcSplatRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/studio/$agentId': {
+      id: '/studio/$agentId'
+      path: '/studio/$agentId'
+      fullPath: '/studio/$agentId'
+      preLoaderRoute: typeof StudioAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -333,6 +353,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   ApiSplatRoute: ApiSplatRoute,
   OffersFormIdRoute: OffersFormIdRoute,
+  StudioAgentIdRoute: StudioAgentIdRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiRpcSplatRoute: ApiRpcSplatRoute,

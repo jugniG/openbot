@@ -1,12 +1,19 @@
-import React, { useState } from "react";
-import type { AgentSpec } from "@repo/types";
-import { RiAddLine, RiCheckLine, RiCompass3Line, RiCodeLine, RiBarChartBoxLine, RiSearch2Line } from "react-icons/ri";
+import React, { useState } from 'react'
+import type { AgentSpec } from '@repo/types'
+import {
+  RiAddLine,
+  RiCheckLine,
+  RiCompass3Line,
+  RiCodeLine,
+  RiBarChartBoxLine,
+  RiSearch2Line,
+} from 'react-icons/ri'
 
 interface AgentLibraryProps {
-  specialists: AgentSpec[];
-  selectedAgentId?: string;
-  onSelectAgent: (agent: AgentSpec) => void;
-  onNewAgent: () => void;
+  specialists: AgentSpec[]
+  selectedAgentId?: string
+  onSelectAgent: (agent: AgentSpec) => void
+  onNewAgent: () => void
 }
 
 export const AgentLibrary: React.FC<AgentLibraryProps> = ({
@@ -15,31 +22,34 @@ export const AgentLibrary: React.FC<AgentLibraryProps> = ({
   onSelectAgent,
   onNewAgent,
 }) => {
-  const [filterQuery, setFilterQuery] = useState("");
+  const [filterQuery, setFilterQuery] = useState('')
 
-  const filteredSpecialists = specialists.filter((a) =>
-    a.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
-    a.domain.toLowerCase().includes(filterQuery.toLowerCase()) ||
-    a.goal.toLowerCase().includes(filterQuery.toLowerCase())
-  );
+  const filteredSpecialists = specialists.filter(
+    (a) =>
+      a.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
+      a.domain.toLowerCase().includes(filterQuery.toLowerCase()) ||
+      a.goal.toLowerCase().includes(filterQuery.toLowerCase()),
+  )
 
   const getDomainIcon = (domain: string) => {
     switch (domain) {
-      case "coding":
-        return <RiCodeLine className="w-3.5 h-3.5 text-emerald-400" />;
-      case "finance":
-        return <RiBarChartBoxLine className="w-3.5 h-3.5 text-amber-400" />;
+      case 'coding':
+        return <RiCodeLine className="w-3.5 h-3.5 text-emerald-400" />
+      case 'finance':
+        return <RiBarChartBoxLine className="w-3.5 h-3.5 text-amber-400" />
       default:
-        return <RiCompass3Line className="w-3.5 h-3.5 text-foreground" />;
+        return <RiCompass3Line className="w-3.5 h-3.5 text-foreground" />
     }
-  };
+  }
 
   return (
     <div className="flex flex-col h-full bg-card border-r border-border text-foreground font-sans">
       {/* Sidebar Header */}
       <div className="px-4 py-3.5 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">Library</span>
+          <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+            Library
+          </span>
           <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-muted text-muted-foreground border border-border">
             {specialists.length}
           </span>
@@ -70,15 +80,15 @@ export const AgentLibrary: React.FC<AgentLibraryProps> = ({
       {/* Specialist List */}
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {filteredSpecialists.map((agent) => {
-          const isSelected = agent.id === selectedAgentId;
+          const isSelected = agent.id === selectedAgentId
           return (
             <div
               key={agent.id}
               onClick={() => onSelectAgent(agent)}
               className={`group relative flex flex-col p-3 rounded-lg border transition-all cursor-pointer ${
                 isSelected
-                  ? "bg-accent text-accent-foreground border-border shadow-xs"
-                  : "bg-transparent hover:bg-accent/40 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground"
+                  ? 'bg-accent text-accent-foreground border-border shadow-xs'
+                  : 'bg-transparent hover:bg-accent/40 border-transparent hover:border-border/60 text-muted-foreground hover:text-foreground'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -90,8 +100,9 @@ export const AgentLibrary: React.FC<AgentLibraryProps> = ({
                     {agent.name}
                   </span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border shrink-0">
-                  {agent.versionTag}
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Ready
                 </span>
               </div>
 
@@ -106,7 +117,7 @@ export const AgentLibrary: React.FC<AgentLibraryProps> = ({
                 </span>
               </div>
             </div>
-          );
+          )
         })}
 
         {filteredSpecialists.length === 0 && (
@@ -116,5 +127,5 @@ export const AgentLibrary: React.FC<AgentLibraryProps> = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}

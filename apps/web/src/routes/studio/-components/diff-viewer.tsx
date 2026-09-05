@@ -1,20 +1,20 @@
-import React, { useState } from "react";
-import type { MutationDiff } from "@repo/types";
-import { RiNodeTree, RiFileTextLine, RiAddLine } from "react-icons/ri";
+import React, { useState } from 'react'
+import type { MutationDiff } from '@repo/types'
+import { RiNodeTree, RiFileTextLine, RiAddLine } from 'react-icons/ri'
 
 interface DiffViewerProps {
-  mutationDiff?: MutationDiff;
+  mutationDiff?: MutationDiff
 }
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({ mutationDiff }) => {
-  const [activeTab, setActiveTab] = useState<"topology" | "prompt">("topology");
+  const [activeTab, setActiveTab] = useState<'topology' | 'prompt'>('topology')
 
   if (!mutationDiff) {
     return (
       <div className="p-6 text-center text-xs text-muted-foreground bg-card rounded-lg border border-border">
         No mutation diff available for this iteration.
       </div>
-    );
+    )
   }
 
   return (
@@ -27,22 +27,22 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ mutationDiff }) => {
 
         <div className="flex items-center gap-1 bg-muted p-1 rounded-md border border-border text-xs">
           <button
-            onClick={() => setActiveTab("topology")}
+            onClick={() => setActiveTab('topology')}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
-              activeTab === "topology"
-                ? "bg-background text-foreground shadow-xs border border-border/50"
-                : "text-muted-foreground hover:text-foreground"
+              activeTab === 'topology'
+                ? 'bg-background text-foreground shadow-xs border border-border/50'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <RiNodeTree className="w-3 h-3" />
             <span>Topology</span>
           </button>
           <button
-            onClick={() => setActiveTab("prompt")}
+            onClick={() => setActiveTab('prompt')}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
-              activeTab === "prompt"
-                ? "bg-background text-foreground shadow-xs border border-border/50"
-                : "text-muted-foreground hover:text-foreground"
+              activeTab === 'prompt'
+                ? 'bg-background text-foreground shadow-xs border border-border/50'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <RiFileTextLine className="w-3 h-3" />
@@ -56,7 +56,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ mutationDiff }) => {
       </p>
 
       {/* Topology Diffs */}
-      {activeTab === "topology" && (
+      {activeTab === 'topology' && (
         <div className="space-y-2">
           {mutationDiff.topologyDiffs.length > 0 ? (
             mutationDiff.topologyDiffs.map((td, idx) => (
@@ -77,7 +77,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ mutationDiff }) => {
       )}
 
       {/* Prompt Diffs */}
-      {activeTab === "prompt" && (
+      {activeTab === 'prompt' && (
         <div className="space-y-2.5">
           {mutationDiff.promptDiffs.map((pd, idx) => (
             <div
@@ -109,5 +109,5 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ mutationDiff }) => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}

@@ -1,9 +1,9 @@
-import React from "react";
-import type { FailureDiagnosis } from "@repo/types";
-import { RiAlertLine, RiArrowRightLine } from "react-icons/ri";
+import React from 'react'
+import type { FailureDiagnosis } from '@repo/types'
+import { RiAlertLine, RiArrowRightLine } from 'react-icons/ri'
 
 interface FailureCardProps {
-  diagnosis?: FailureDiagnosis;
+  diagnosis?: FailureDiagnosis
 }
 
 export const FailureCard: React.FC<FailureCardProps> = ({ diagnosis }) => {
@@ -12,7 +12,7 @@ export const FailureCard: React.FC<FailureCardProps> = ({ diagnosis }) => {
       <div className="p-6 text-center text-xs text-muted-foreground bg-card rounded-lg border border-border">
         No active failure diagnosis for this iteration.
       </div>
-    );
+    )
   }
 
   return (
@@ -21,9 +21,13 @@ export const FailureCard: React.FC<FailureCardProps> = ({ diagnosis }) => {
       <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-foreground/90 leading-relaxed">
         <div className="flex items-center gap-1.5 font-medium text-amber-400 mb-1 font-mono text-[11px]">
           <RiAlertLine className="w-3.5 h-3.5" />
-          <span>Evaluation Failure Analysis ({diagnosis.agentVersion === 0 ? "v0 Baseline" : `v${diagnosis.agentVersion}`})</span>
+          <span>
+            Evaluation Failure Analysis (Initial Baseline)
+          </span>
         </div>
-        <p className="text-muted-foreground text-xs leading-relaxed">{diagnosis.summary}</p>
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          {diagnosis.summary}
+        </p>
       </div>
 
       {/* Root Causes List */}
@@ -77,5 +81,5 @@ export const FailureCard: React.FC<FailureCardProps> = ({ diagnosis }) => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}

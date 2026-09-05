@@ -6,3 +6,5 @@ export * from "./evaluator.js";
 export * from "./failure-analyzer.js";
 export * from "./agent-optimizer.js";
 export * from "./loop-orchestrator.js";
+export * from "./llm-provider.js";
+export * from "./solari-runner.js";

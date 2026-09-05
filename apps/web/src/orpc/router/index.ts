@@ -23,6 +23,8 @@ import {
   runSpecialistExecution,
   clarifyOrAnalyzeGoal,
   refineSpecialist,
+  saveAgentEnv,
+  deleteAgentEnv,
 } from './engineer'
 
 export default {
@@ -52,6 +54,8 @@ export default {
     getSpecialist,
     runSpecialistExecution,
     refineSpecialist,
+    saveAgentEnv,
+    deleteAgentEnv,
   },
 }
 

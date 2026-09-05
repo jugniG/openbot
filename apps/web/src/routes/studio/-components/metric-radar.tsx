@@ -1,21 +1,20 @@
-import React from "react";
-import type { MetricScore } from "@repo/types";
-import { RiCheckLine, RiCloseLine } from "react-icons/ri";
+import React from 'react'
+import type { MetricScore } from '@repo/types'
+import { RiCheckLine, RiCloseLine } from 'react-icons/ri'
 
 interface MetricRadarProps {
-  metrics: MetricScore[];
-  overallScore: number;
-  versionTag: string;
-  targetScore: number;
+  metrics: MetricScore[]
+  overallScore: number
+  targetScore: number
+  versionTag?: string
 }
 
 export const MetricRadar: React.FC<MetricRadarProps> = ({
   metrics,
   overallScore,
-  versionTag,
   targetScore,
 }) => {
-  const isPassed = overallScore >= targetScore;
+  const isPassed = overallScore >= targetScore
 
   return (
     <div className="flex flex-col space-y-4 font-sans">
@@ -23,12 +22,12 @@ export const MetricRadar: React.FC<MetricRadarProps> = ({
       <div className="p-4 rounded-xl bg-card border border-border flex items-center justify-between shadow-xs">
         <div>
           <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
-            Overall Benchmark ({versionTag})
+            Overall Benchmark Evaluation
           </span>
           <div className="flex items-baseline gap-2.5 mt-1">
             <span
               className={`text-3xl font-bold font-mono ${
-                isPassed ? "text-foreground" : "text-amber-400"
+                isPassed ? 'text-foreground' : 'text-amber-400'
               }`}
             >
               {overallScore}%
@@ -42,8 +41,8 @@ export const MetricRadar: React.FC<MetricRadarProps> = ({
         <div
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium border ${
             isPassed
-              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-              : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
           }`}
         >
           {isPassed ? (
@@ -77,7 +76,11 @@ export const MetricRadar: React.FC<MetricRadarProps> = ({
                     </span>
                   )}
                   <span
-                    className={m.passed ? "text-foreground font-semibold" : "text-amber-400 font-semibold"}
+                    className={
+                      m.passed
+                        ? 'text-foreground font-semibold'
+                        : 'text-amber-400 font-semibold'
+                    }
                   >
                     {m.score}%
                   </span>
@@ -88,7 +91,7 @@ export const MetricRadar: React.FC<MetricRadarProps> = ({
               <div className="relative h-1.5 w-full bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    m.passed ? "bg-primary" : "bg-amber-400"
+                    m.passed ? 'bg-primary' : 'bg-amber-400'
                   }`}
                   style={{ width: `${Math.min(m.score, 100)}%` }}
                 />
@@ -96,12 +99,12 @@ export const MetricRadar: React.FC<MetricRadarProps> = ({
 
               <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground font-mono">
                 <span>Threshold: {m.targetThreshold}%</span>
-                <span>{m.passed ? "Pass" : "Fail"}</span>
+                <span>{m.passed ? 'Pass' : 'Fail'}</span>
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}

@@ -13,22 +13,17 @@ import {
   RiSendPlane2Fill,
   RiInformationLine,
 } from "react-icons/ri";
+import type { ChatMessage } from "@repo/types";
 import { client } from "#/orpc/client";
 
 interface CreateHeroProps {
-  onRunGoal: (goal: string) => void;
+  onRunGoal: (goal: string, messages?: ChatMessage[]) => void;
   isRunning: boolean;
-}
-
-interface ChatBubble {
-  role: "user" | "assistant";
-  content: string;
-  quickSuggestions?: string[];
 }
 
 export const CreateHero: React.FC<CreateHeroProps> = ({ onRunGoal, isRunning }) => {
   const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState<ChatBubble[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -67,7 +62,11 @@ export const CreateHero: React.FC<CreateHeroProps> = ({ onRunGoal, isRunning }) 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isRunning || isAnalyzing) return;
 
-    const userMsg: ChatBubble = { role: "user", content: textToSend.trim() };
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: textToSend.trim(),
+      timestamp: new Date().toISOString(),
+    };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setPrompt("");
@@ -85,21 +84,22 @@ export const CreateHero: React.FC<CreateHeroProps> = ({ onRunGoal, isRunning }) 
             role: "assistant",
             content: res.question,
             quickSuggestions: res.quickSuggestions || [],
+            timestamp: new Date().toISOString(),
           },
         ]);
       } else if (res.status === "ready") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: `Architectural specification complete for ${res.analysis.agentName}. Initiating autonomous engineering loop...`,
-          },
-        ]);
-        onRunGoal(res.analysis.refinedPrompt || textToSend);
+        const assistantMsg: ChatMessage = {
+          role: "assistant",
+          content: `Architectural specification complete for ${res.analysis.agentName}. Initiating autonomous engineering loop...`,
+          timestamp: new Date().toISOString(),
+        };
+        const finalMessages = [...newMessages, assistantMsg];
+        setMessages(finalMessages);
+        onRunGoal(res.analysis.refinedPrompt || textToSend, finalMessages);
       }
     } catch (err) {
       console.warn("Clarification fallback:", err);
-      onRunGoal(textToSend);
+      onRunGoal(textToSend, newMessages);
     } finally {
       setIsAnalyzing(false);
     }
@@ -137,11 +137,11 @@ export const CreateHero: React.FC<CreateHeroProps> = ({ onRunGoal, isRunning }) 
             </span>
           </div>
 
-          {/* Temporary Chat Notice & Reset Action */}
+          {/* Architectural Interview Notice & Reset Action */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md">
-              <RiAlertLine className="w-3.5 h-3.5 shrink-0" />
-              <span>Temporary chat — will reset if you navigate away</span>
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
+              <RiSparklingLine className="w-3.5 h-3.5 shrink-0" />
+              <span>Architectural Interview — Persisted directly with your agent</span>
             </div>
 
             <button
@@ -155,10 +155,10 @@ export const CreateHero: React.FC<CreateHeroProps> = ({ onRunGoal, isRunning }) 
           </div>
         </div>
 
-        {/* Temporary Notice for Mobile */}
-        <div className="sm:hidden flex items-center gap-1.5 text-[10px] text-amber-400/90 bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5">
-          <RiAlertLine className="w-3.5 h-3.5 shrink-0" />
-          <span>Temporary chat — clears when you leave.</span>
+        {/* Notice for Mobile */}
+        <div className="sm:hidden flex items-center gap-1.5 text-[10px] text-emerald-400/90 bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-1.5">
+          <RiSparklingLine className="w-3.5 h-3.5 shrink-0" />
+          <span>Architectural Interview — Persisted with agent.</span>
         </div>
 
         {/* Message Stream (Full Height, Natural Chat Layout) */}
@@ -316,10 +316,10 @@ export const CreateHero: React.FC<CreateHeroProps> = ({ onRunGoal, isRunning }) 
         Describe what you need. OpenBot will design, test, diagnose, and autonomously improve the agent.
       </p>
 
-      {/* Ephemeral Warning Hint */}
+      {/* Hero Persistence Hint */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground/80 bg-muted/40 border border-border/80 px-3 py-1 rounded-full mb-6">
         <RiInformationLine className="w-3.5 h-3.5 text-muted-foreground" />
-        <span>Prompt sessions are temporary. Engineered agents are saved in My Agents.</span>
+        <span>1 Agent = 1 Chat Session. Interview conversations are permanently attached to your agent.</span>
       </div>
 
       {/* Main Input Composer */}

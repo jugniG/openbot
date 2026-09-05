@@ -1,5 +1,6 @@
 import type {
   AgentSpec,
+  ChatMessage,
   FailureDiagnosis,
   MutationDiff,
   PipelineNode,
@@ -91,3 +92,71 @@ Proposed Fixes: ${JSON.stringify(diagnosis.proposedMutations)}`;
     mutationDiff,
   };
 }
+
+export async function refineAgentWithFollowUp(
+  currentAgent: AgentSpec,
+  followUpPrompt: string,
+  updatedMessages: ChatMessage[]
+): Promise<OptimizationResult> {
+  const newVersion = currentAgent.version + 1;
+  const newVersionTag = `v${newVersion}`;
+
+  const systemPrompt = `You are the Lead Agent Architect inside OpenBot (Automated Agent Engineering Factory).
+The user is providing an incremental modification or refinement instruction for an existing agent.
+Your role: Mutate and refine the agent's architecture, nodes, tools, and system prompts to fulfill the user's new instruction while preserving existing capabilities.
+
+Available Tools in Registry:
+${JSON.stringify(availableTools.map((t) => ({ id: t.id, name: t.name, description: t.description })))}
+
+Output Schema:
+{
+  "architectureSummary": "string (e.g. 'Planner -> Worker -> Verifier -> Notifier')",
+  "newNodes": [ array of PipelineNode objects with id, name, role, systemPrompt, assignedTools, stepIndex, color ],
+  "newEdges": [ array of PipelineEdge objects with id, source, target, label ],
+  "mutationSummary": "string (executive summary of mutations fulfilling user request)",
+  "topologyDiffs": [ { "action": "added_node" | "removed_node" | "added_edge" | "removed_edge", "description": "string" } ],
+  "promptDiffs": [ { "nodeId": "string", "nodeName": "string", "oldPrompt": "string", "newPrompt": "string" } ]
+}`;
+
+  const userPrompt = `Existing Agent: "${currentAgent.name}" (${currentAgent.versionTag})
+Current Goal: "${currentAgent.goal}"
+Current Nodes: ${JSON.stringify(currentAgent.nodes)}
+Current Edges: ${JSON.stringify(currentAgent.edges)}
+
+User Modification Request: "${followUpPrompt}"
+Full Conversation Context:
+${updatedMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")}`;
+
+  const res = await callGeminiJSON<LLMOptimizationResponse>(systemPrompt, userPrompt);
+
+  const improvedAgent: AgentSpec = {
+    ...currentAgent,
+    version: newVersion,
+    versionTag: newVersionTag,
+    architectureSummary: res.architectureSummary,
+    nodes: res.newNodes,
+    edges: res.newEdges,
+    availableTools,
+    messages: updatedMessages,
+  };
+
+  const mutationDiff: MutationDiff = {
+    id: `diff-v${currentAgent.version}-v${newVersion}-${Date.now()}`,
+    fromVersion: currentAgent.version,
+    toVersion: newVersion,
+    summary: res.mutationSummary,
+    actions: res.topologyDiffs.map((td) => ({
+      type: td.action === "added_node" ? "add_stage" : "rewire_edge",
+      targetId: td.description,
+      description: td.description,
+    })),
+    topologyDiffs: res.topologyDiffs,
+    promptDiffs: res.promptDiffs,
+  };
+
+  return {
+    improvedAgent,
+    mutationDiff,
+  };
+}
+

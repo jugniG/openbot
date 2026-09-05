@@ -42,6 +42,15 @@ export const PipelineEdgeSchema = z.object({
 
 export type PipelineEdge = z.infer<typeof PipelineEdgeSchema>;
 
+export const ChatMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  timestamp: z.string().optional(),
+  quickSuggestions: z.array(z.string()).optional(),
+});
+
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
 export const AgentSpecSchema = z.object({
   id: z.string(),
   version: z.number(), // 0, 1, 2...
@@ -53,7 +62,9 @@ export const AgentSpecSchema = z.object({
   nodes: z.array(PipelineNodeSchema),
   edges: z.array(PipelineEdgeSchema),
   availableTools: z.array(ToolDefinitionSchema),
+  messages: z.array(ChatMessageSchema).optional(),
   createdAt: z.string(),
 });
 
 export type AgentSpec = z.infer<typeof AgentSpecSchema>;
+

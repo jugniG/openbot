@@ -1,9 +1,7 @@
+import type { ChatMessage } from "@repo/types";
 import { callGeminiJSON } from "./llm-provider.js";
 
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+export type { ChatMessage };
 
 export interface GoalAnalysisResult {
   domain: "research" | "coding" | "finance" | "general";

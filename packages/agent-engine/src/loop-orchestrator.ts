@@ -4,6 +4,7 @@ import type {
   SessionEvent,
   AgentSpec,
   EvaluationCase,
+  ChatMessage,
 } from "@repo/types";
 import { analyzeGoal } from "./goal-analyzer.js";
 import { generateInitialV0Architecture } from "./arch-generator.js";
@@ -44,9 +45,14 @@ export class LoopOrchestrator {
 
   public async runEngineeringLoop(
     goalPrompt: string,
-    sessionId: string = `sess-${Date.now()}`
+    sessionId: string = `sess-${Date.now()}`,
+    initialMessages?: ChatMessage[]
   ): Promise<EngineeringSession> {
     const now = new Date().toISOString();
+    const finalMessages: ChatMessage[] =
+      initialMessages && initialMessages.length > 0
+        ? initialMessages
+        : [{ role: "user", content: goalPrompt, timestamp: now }];
 
     const session: EngineeringSession = {
       id: sessionId,
@@ -75,6 +81,7 @@ export class LoopOrchestrator {
     // 2. Synthesize Initial v0 Architecture (Dynamic / LLM)
     session.status = "generating";
     let currentAgent: AgentSpec = await generateInitialV0Architecture(analysis, goalPrompt);
+    currentAgent.messages = finalMessages;
     session.currentAgent = currentAgent;
 
     this.emit(

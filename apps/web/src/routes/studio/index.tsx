@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { client } from "#/orpc/client";
-import type { AgentSpec, EngineeringSession } from "@repo/types";
+import type { AgentSpec, EngineeringSession, ChatMessage } from "@repo/types";
 
 import { TopNav } from "./-components/top-nav";
 import { AgentSidebar } from "./-components/agent-sidebar";
@@ -54,7 +54,9 @@ function StudioPage() {
     loadSpecialists();
   }, []);
 
-  const handleRunGoal = async (goal: string) => {
+  const [isRefining, setIsRefining] = useState(false);
+
+  const handleRunGoal = async (goal: string, messages?: ChatMessage[]) => {
     setActiveGoal(goal);
     setIsRunning(true);
     setCurrentStage("Analyzing Goal Specifications...");
@@ -68,7 +70,7 @@ function StudioPage() {
 
     try {
       // Trigger autonomous engineering session
-      const result = await client.engineer.startEngineeringSession({ goal });
+      const result = await (client.engineer as any).startEngineeringSession({ goal, messages });
       const completedSession = result.session as EngineeringSession;
 
       // Realistic progressive stepper transitions for demo visibility
@@ -110,6 +112,47 @@ function StudioPage() {
       console.error("Engineering session error:", err);
       setIsRunning(false);
       setCurrentStage("Failed");
+    }
+  };
+
+  const handleRefineAgent = async (followUpPrompt: string) => {
+    if (!selectedAgent) return;
+    setIsRefining(true);
+    try {
+      const res = await (client.engineer as any).refineSpecialist({
+        agentId: selectedAgent.id,
+        followUpMessage: followUpPrompt,
+        messages: selectedAgent.messages || [],
+      });
+
+      const updatedAgent = res.agent as AgentSpec;
+      setSelectedAgent(updatedAgent);
+
+      // Append new refinement iteration to session
+      if (session) {
+        const newStep = {
+          iterationIndex: session.iterations.length,
+          versionTag: updatedAgent.versionTag,
+          agentSpec: updatedAgent,
+          evaluationRun: res.evalRun,
+          mutationDiff: res.mutationDiff,
+          targetReached: true,
+          timestamp: new Date().toISOString(),
+        };
+        setSession({
+          ...session,
+          currentAgent: updatedAgent,
+          iterations: [...session.iterations, newStep],
+        });
+      }
+
+      // Refresh specialists list
+      const updatedList = await client.engineer.listSpecialists({});
+      setSpecialists(updatedList as AgentSpec[]);
+    } catch (err) {
+      console.error("Failed to refine agent:", err);
+    } finally {
+      setIsRefining(false);
     }
   };
 
@@ -298,6 +341,8 @@ function StudioPage() {
               onOpenTestModal={() => setIsTestModalOpen(true)}
               onOpenExportModal={() => setIsExportModalOpen(true)}
               onSelectInspector={(content) => setInspectorContent(content)}
+              onRefineAgent={handleRefineAgent}
+              isRefining={isRefining}
             />
           )}
         </main>

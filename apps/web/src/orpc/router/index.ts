@@ -22,6 +22,7 @@ import {
   getSpecialist,
   runSpecialistExecution,
   clarifyOrAnalyzeGoal,
+  refineSpecialist,
 } from './engineer'
 
 export default {
@@ -50,5 +51,7 @@ export default {
     listSpecialists,
     getSpecialist,
     runSpecialistExecution,
+    refineSpecialist,
   },
 }
+

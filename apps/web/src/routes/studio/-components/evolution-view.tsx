@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import type { EngineeringSession, AgentSpec, RootCause, PipelineNode } from "@repo/types";
+import React, { useState, useRef, useEffect } from "react";
+import type { EngineeringSession, AgentSpec, RootCause, PipelineNode, ChatMessage } from "@repo/types";
 import {
   RiCheckLine,
   RiArrowRightLine,
@@ -10,6 +10,11 @@ import {
   RiNodeTree,
   RiAddLine,
   RiSparklingLine,
+  RiChat3Line,
+  RiSendPlane2Fill,
+  RiLoader4Line,
+  RiRobot2Line,
+  RiUser3Line,
 } from "react-icons/ri";
 import type { InspectorContent } from "./contextual-inspector";
 
@@ -18,6 +23,8 @@ interface EvolutionViewProps {
   onOpenTestModal: () => void;
   onOpenExportModal: () => void;
   onSelectInspector: (content: InspectorContent) => void;
+  onRefineAgent?: (followUpPrompt: string) => Promise<void>;
+  isRefining?: boolean;
 }
 
 export const EvolutionView: React.FC<EvolutionViewProps> = ({
@@ -25,8 +32,12 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   onOpenTestModal,
   onOpenExportModal,
   onSelectInspector,
+  onRefineAgent,
+  isRefining = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<"evolution" | "architecture">("evolution");
+  const [activeTab, setActiveTab] = useState<"evolution" | "architecture" | "chat">("evolution");
+  const [refineInput, setRefineInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const v0 = session.iterations[0];
   const v1 = session.iterations[session.iterations.length - 1];
@@ -37,6 +48,31 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
   const v0Agent: AgentSpec | undefined = v0?.agentSpec;
   const v1Agent: AgentSpec | undefined = v1?.agentSpec || session.currentAgent;
+
+  const messages: ChatMessage[] =
+    v1Agent?.messages && v1Agent.messages.length > 0
+      ? v1Agent.messages
+      : [
+          { role: "user", content: session.goal },
+          {
+            role: "assistant",
+            content: `Engineered specialist ${v1Agent?.name || "Agent"} (${v1Agent?.versionTag || "v1"}): [${v1Agent?.architectureSummary || "Pipeline"}]. All target criteria verified with overall benchmark score ${v1Score}%.`,
+          },
+        ];
+
+  useEffect(() => {
+    if (activeTab === "chat") {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [activeTab, messages.length, isRefining]);
+
+  const handleRefineSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!refineInput.trim() || isRefining || !onRefineAgent) return;
+    const text = refineInput.trim();
+    setRefineInput("");
+    await onRefineAgent(text);
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto p-5 sm:p-7 max-w-5xl mx-auto w-full font-sans text-foreground space-y-6 animate-in fade-in duration-300">
@@ -81,7 +117,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         </div>
       </div>
 
-      {/* View Switcher: Evolution Story vs Full Architecture Graph */}
+      {/* View Switcher: Evolution Story vs Architecture vs Chat */}
       <div className="flex items-center justify-between border-b border-border pb-3">
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border">
           <button
@@ -107,14 +143,27 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             <RiNodeTree className="w-3.5 h-3.5" />
             <span>Architecture View</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+              activeTab === "chat"
+                ? "bg-background text-foreground shadow-xs border border-border/50"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <RiChat3Line className="w-3.5 h-3.5" />
+            <span>Chat & Refine ({messages.length})</span>
+          </button>
         </div>
+
 
         <span className="text-[11px] font-mono text-muted-foreground">
           Target Threshold: {session.targetOverallScore}%
         </span>
       </div>
 
-      {activeTab === "evolution" ? (
+      {activeTab === "evolution" && (
         <>
           {/* THE HERO JUMP CARD: Performance Evolution (Section 5) */}
           <div className="bg-card border border-border rounded-xl p-6 shadow-xs relative overflow-hidden">
@@ -331,7 +380,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             </div>
           </div>
         </>
-      ) : (
+      )}
+
+      {activeTab === "architecture" && (
         /* Full Architecture Graph View (Section 6) */
         <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-border">
@@ -382,6 +433,113 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           </div>
         </div>
       )}
+
+      {activeTab === "chat" && (
+        <div className="flex flex-col bg-card border border-border rounded-xl shadow-xs overflow-hidden h-[540px]">
+          {/* Header */}
+          <div className="h-11 px-4 border-b border-border flex items-center justify-between bg-muted/20 shrink-0">
+            <div className="flex items-center gap-2">
+              <RiRobot2Line className="w-4 h-4 text-foreground" />
+              <span className="text-xs font-semibold text-foreground">
+                Agent Specification Thread: {v1Agent?.name}
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                {v1Agent?.versionTag}
+              </span>
+            </div>
+            <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Persisted with this Agent
+            </span>
+          </div>
+
+          {/* Messages Stream */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            {messages.map((m, idx) => (
+              <div
+                key={idx}
+                className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {m.role === "assistant" && (
+                  <div className="w-7 h-7 rounded-lg bg-muted border border-border flex items-center justify-center text-foreground shrink-0 mt-0.5">
+                    <RiRobot2Line className="w-3.5 h-3.5" />
+                  </div>
+                )}
+                <div
+                  className={`flex flex-col gap-1 max-w-[85%] ${
+                    m.role === "user" ? "items-end" : "items-start"
+                  }`}
+                >
+                  <span className="text-[10px] font-mono uppercase text-muted-foreground px-1">
+                    {m.role === "user" ? "You" : "OpenBot Architect"}
+                  </span>
+                  <div
+                    className={`rounded-xl px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                      m.role === "user"
+                        ? "bg-secondary text-secondary-foreground border border-border"
+                        : "bg-muted/40 text-foreground border border-border"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+                {m.role === "user" && (
+                  <div className="w-7 h-7 rounded-lg bg-secondary border border-border flex items-center justify-center text-foreground shrink-0 mt-0.5">
+                    <RiUser3Line className="w-3.5 h-3.5" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isRefining && (
+              <div className="flex gap-3 items-center">
+                <div className="w-7 h-7 rounded-lg bg-muted border border-border flex items-center justify-center text-foreground shrink-0">
+                  <RiLoader4Line className="w-3.5 h-3.5 animate-spin" />
+                </div>
+                <div className="px-4 py-2.5 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground flex items-center gap-2">
+                  <RiSparklingLine className="w-3.5 h-3.5 text-foreground animate-pulse" />
+                  <span className="shimmer">
+                    Architect is mutating DAG topology, tools, and re-evaluating benchmarks...
+                  </span>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Composer */}
+          <div className="p-3 border-t border-border bg-muted/20 shrink-0">
+            <form onSubmit={handleRefineSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={refineInput}
+                onChange={(e) => setRefineInput(e.target.value)}
+                disabled={isRefining}
+                placeholder="Modify or refine this agent (e.g. 'Add a Slack alert node on failure', 'Tighten anomaly precision threshold')..."
+                className="flex-1 bg-background border border-border rounded-lg px-3.5 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={isRefining || !refineInput.trim()}
+                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 disabled:bg-muted text-primary-foreground disabled:text-muted-foreground text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:cursor-not-allowed"
+              >
+                {isRefining ? (
+                  <>
+                    <RiLoader4Line className="w-3.5 h-3.5 animate-spin" />
+                    <span>Refining...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Refine Agent</span>
+                    <RiSendPlane2Fill className="w-3 h-3" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

@@ -10,7 +10,8 @@
     "test": "turbo run test",
     "check-types": "turbo run check-types",
     "db:generate": "npm run --workspace=driz db:generate",
-    "db:migrate": "npm run --workspace=driz db:migrate"
+    "db:migrate": "npm run --workspace=driz db:migrate",
+    "postinstall": "npm run db:generate"
   },
   "devDependencies": {
     "@jridgewell/sourcemap-codec": "1.6.0",

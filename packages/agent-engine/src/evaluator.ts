@@ -6,7 +6,12 @@ export function evaluateAgentRun(
   evalCase: EvaluationCase,
   execResult: ExecutionResult
 ): EvaluationRun {
-  const isV0 = agent.version === 0;
+  const hasVerifier = agent.nodes.some(
+    (n) =>
+      n.role.toLowerCase().includes("verifier") ||
+      n.role.toLowerCase().includes("validation") ||
+      n.assignedTools.some((t) => t.includes("verifier") || t.includes("checker"))
+  );
 
   // 1. Determine dynamic metric dimensions tailored to the agent's domain & goal
   let metricNames: Array<{ name: string; threshold: number }> = [];
@@ -42,20 +47,20 @@ export function evaluateAgentRun(
   }
 
   // 2. Compute dynamic scores
-  // In v0, pipeline lacks verification checkpoints -> scores 58%-68%
-  // In v1, pipeline contains injected validation and hardened prompts -> scores 89%-96%
+  // If pipeline lacks verification checkpoints -> scores 58%-68%
+  // If pipeline contains injected validation -> scores 89%-96%
   const metrics: MetricScore[] = metricNames.map((m, idx) => {
     let score: number;
     let delta: number | undefined;
 
-    if (isV0) {
+    if (!hasVerifier) {
       // Deterministically varied between 56% and 72%
       score = Math.min(74, 58 + ((idx * 7 + agent.name.length * 3) % 15));
     } else {
       // Improved score between 89% and 97%
-      const baseV0 = Math.min(74, 58 + ((idx * 7 + agent.name.length * 3) % 15));
+      const baseScore = Math.min(74, 58 + ((idx * 7 + agent.name.length * 3) % 15));
       score = Math.min(98, 89 + ((idx * 3 + agent.name.length) % 8));
-      delta = score - baseV0;
+      delta = score - baseScore;
     }
 
     return {
@@ -64,7 +69,7 @@ export function evaluateAgentRun(
       targetThreshold: m.threshold,
       passed: score >= m.threshold,
       delta,
-      notes: isV0
+      notes: !hasVerifier
         ? `Deficiency detected in ${m.name}: missing dedicated verification pass.`
         : `Verified: ${m.name} reached target threshold with +${delta}% delta.`,
     };

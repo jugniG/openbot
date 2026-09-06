@@ -21,7 +21,6 @@ import {
   listSpecialists,
   getSpecialist,
   runSpecialistExecution,
-  clarifyOrAnalyzeGoal,
   initiateAgentChat,
   refineSpecialist,
   saveAgentEnv,
@@ -48,7 +47,6 @@ export default {
     getFormSubmissions,
   },
   engineer: {
-    clarifyOrAnalyzeGoal,
     initiateAgentChat,
     startEngineeringSession,
     getSession,

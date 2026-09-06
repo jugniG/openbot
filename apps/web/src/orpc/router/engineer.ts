@@ -15,21 +15,6 @@ import type {
 import { prisma } from "#/db";
 import { env } from "#/env";
 
-export const clarifyOrAnalyzeGoal = os
-  .input(
-    z.object({
-      messages: z.array(
-        z.object({
-          role: z.enum(["user", "assistant"]),
-          content: z.string(),
-        })
-      ),
-    })
-  )
-  .handler(async ({ input }) => {
-    return analyzeGoalWithConversation(input.messages);
-  });
-
 export const initiateAgentChat = os
   .input(
     z.object({

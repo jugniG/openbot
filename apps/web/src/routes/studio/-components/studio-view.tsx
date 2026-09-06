@@ -20,129 +20,21 @@ export interface StudioViewProps {
   initialAgent?: AgentSpec
 }
 
-function generateMetricsForAgent(agent: AgentSpec, isOptimized: boolean): MetricScore[] {
-  const d = agent.domain.toLowerCase()
-  if (d === 'coding') {
-    return [
-      {
-        name: 'Task 1: Concurrency Bug & Race Condition Isolation',
-        score: isOptimized ? 95 : 62,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Pinpointed async mutex race condition via AST call-graph'
-          : 'Failed: Missed thread safety hazard in concurrent event loop',
-      },
-      {
-        name: 'Task 2: Atomic Minimal Patch Generation',
-        score: isOptimized ? 94 : 70,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Generated clean thread-safe patch with lock guard'
-          : 'Patch contained potential regression side-effects',
-      },
-      {
-        name: 'Task 3: Automated Sandbox Regression Tests',
-        score: isOptimized ? 93 : 58,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'All sandbox test suites passed with 0 regressions'
-          : 'Failed: Unverified patch broke edge-case test suite in sandbox',
-      },
-      {
-        name: 'Task 4: Strict Type & Lint Compliance',
-        score: isOptimized ? 96 : 74,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Zero type errors or debug statements remaining'
-          : 'Minor lint and typing warnings unaddressed',
-      },
-    ]
-  }
-
-  if (d === 'finance') {
-    return [
-      {
-        name: 'Task 1: Ingestion & Currency Normalization',
-        score: isOptimized ? 96 : 82,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Accurately converted ISO currencies and cleaned timestamps'
-          : 'Failed on multi-currency split transactions',
-      },
-      {
-        name: 'Task 2: Outlier & Fraud Anomaly Isolation',
-        score: isOptimized ? 94 : 59,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Flagged fraudulent spikes with zero false positives'
-          : 'High false positive rate using naive static limits',
-      },
-      {
-        name: 'Task 3: Policy Handbook Compliance Verification',
-        score: isOptimized ? 92 : 60,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Verified line items against company procurement policies'
-          : 'Failed to cross-check item categories with policy limits',
-      },
-      {
-        name: 'Task 4: Audit-Ready Dossier Generation',
-        score: isOptimized ? 95 : 63,
-        targetThreshold: 85,
-        passed: isOptimized,
-        notes: isOptimized
-          ? 'Produced audit-compliant findings with traceable citations'
-          : 'Summary lacked source references and proof breakdown',
-      },
-    ]
-  }
-
-  // Default / Research / Web / Aggregation
-  return [
-    {
-      name: 'Task 1: Core Entity & Target Data Extraction',
-      score: isOptimized ? 96 : 80,
-      targetThreshold: 85,
-      passed: true,
-      notes: isOptimized
-        ? 'Extracted all target entities, links, and structured metadata'
-        : 'Extracted initial listings but missed nested metadata attributes',
-    },
-    {
-      name: 'Task 2: Source Verification & Anti-Hallucination',
-      score: isOptimized ? 93 : 58,
-      targetThreshold: 85,
-      passed: isOptimized,
-      notes: isOptimized
-        ? 'Validated all links and claims against independent live sources'
-        : 'Failed: Accepted unverified single-source claims and dead links',
-    },
-    {
-      name: 'Task 3: Noise Filtration & Deduplication',
-      score: isOptimized ? 92 : 55,
-      targetThreshold: 85,
-      passed: isOptimized,
-      notes: isOptimized
-        ? 'Purged duplicate entries and excluded spam/expired items'
-        : 'Failed: Emitted duplicates and expired listings',
-    },
-    {
-      name: 'Task 4: Output Schema & Constraint Adherence',
-      score: isOptimized ? 95 : 71,
-      targetThreshold: 85,
-      passed: isOptimized,
-      notes: isOptimized
-        ? 'Strict adherence to required output format and schema constraints'
-        : 'Failed: Output formatting was incomplete without required fields',
-    },
+function generateMetricsForAgent(_agent: AgentSpec, isOptimized: boolean): MetricScore[] {
+  const criteria = [
+    { name: 'Task Completion & Schema Adherence', score: isOptimized ? 95 : 68, notes: 'Stage outputs match required schema' },
+    { name: 'Rigor & Verification Validation', score: isOptimized ? 93 : 60, notes: 'Multi-stage validation and safety checks' },
+    { name: 'Execution Latency & Efficiency', score: isOptimized ? 94 : 72, notes: 'Pipeline execution completes within SLA' },
+    { name: 'Data Transformation Precision', score: isOptimized ? 96 : 65, notes: 'Accurate parameter extraction across stages' },
   ]
+
+  return criteria.map((c) => ({
+    name: c.name,
+    score: c.score,
+    targetThreshold: 85,
+    passed: c.score >= 85,
+    notes: c.notes,
+  }))
 }
 
 function buildSessionForAgent(agent: AgentSpec): EngineeringSession {

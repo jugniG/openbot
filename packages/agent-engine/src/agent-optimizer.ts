@@ -164,6 +164,20 @@ ${updatedMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
     stepIndex: typeof n.stepIndex === "number" ? n.stepIndex : idx,
   }));
 
+  const requiredEnvsSet = new Set<string>(
+    Array.isArray(currentAgent.requiredEnvs) ? currentAgent.requiredEnvs : []
+  );
+  for (const n of newNodes) {
+    for (const tId of n.assignedTools || []) {
+      const def = availableTools.find((t) => t.id === tId);
+      if (def?.requiredEnvs) {
+        for (const e of def.requiredEnvs) {
+          requiredEnvsSet.add(e);
+        }
+      }
+    }
+  }
+
   const improvedAgent: AgentSpec = {
     ...currentAgent,
     version: newVersion,
@@ -171,6 +185,7 @@ ${updatedMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
     architectureSummary: res.architectureSummary || currentAgent.architectureSummary,
     nodes: newNodes,
     edges: Array.isArray(res.newEdges) ? res.newEdges : currentAgent.edges,
+    requiredEnvs: Array.from(requiredEnvsSet),
     availableTools,
     messages: updatedMessages,
   };

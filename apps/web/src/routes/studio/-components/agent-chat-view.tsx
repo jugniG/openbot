@@ -6,6 +6,7 @@ import {
   RiLoader4Line,
   RiSendPlane2Fill,
   RiSparklingLine,
+  RiErrorWarningLine,
 } from 'react-icons/ri'
 
 interface AgentChatViewProps {
@@ -20,10 +21,13 @@ export const AgentChatView: React.FC<AgentChatViewProps> = ({
   isSending = false,
 }) => {
   const [input, setInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const messages: ChatMessage[] =
+  // Local messages state for instant optimistic updates
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>(() =>
     agent.messages && agent.messages.length > 0
       ? agent.messages
       : [
@@ -33,19 +37,46 @@ export const AgentChatView: React.FC<AgentChatViewProps> = ({
             timestamp: agent.createdAt,
           },
         ]
+  )
+
+  // Sync local messages whenever agent messages update from server
+  useEffect(() => {
+    if (agent.messages && agent.messages.length > 0) {
+      setLocalMessages(agent.messages)
+      setError(null)
+      setLastFailedMessage(null)
+    }
+  }, [agent.id, agent.messages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, isSending])
+  }, [localMessages.length, isSending, error])
 
   const handleSubmit = async (textToSend: string) => {
     if (!textToSend.trim() || isSending) return
     const text = textToSend.trim()
     setInput('')
+    setError(null)
+    setLastFailedMessage(null)
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-    await onSendMessage(text)
+
+    // Optimistic UI: immediately render user's message
+    const optimisticMsg: ChatMessage = {
+      role: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+    }
+    setLocalMessages((prev) => [...prev, optimisticMsg])
+
+    try {
+      await onSendMessage(text)
+    } catch (err: any) {
+      console.error('Agent chat send error:', err)
+      setError(err?.message || 'Server error while processing message. Please try again.')
+      setLastFailedMessage(text)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -83,7 +114,7 @@ export const AgentChatView: React.FC<AgentChatViewProps> = ({
       {/* Message Stream */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
         <div className="max-w-2xl mx-auto space-y-6">
-          {messages.map((msg, i) => (
+          {localMessages.map((msg, i) => (
             <div
               key={i}
               className={`flex gap-3 ${
@@ -116,25 +147,6 @@ export const AgentChatView: React.FC<AgentChatViewProps> = ({
                     {msg.content}
                   </div>
                 )}
-
-                {/* Quick suggestions if assistant asked clarification */}
-                {msg.role === 'assistant' &&
-                  msg.quickSuggestions &&
-                  msg.quickSuggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {msg.quickSuggestions.map((sug, sIdx) => (
-                        <button
-                          key={sIdx}
-                          type="button"
-                          onClick={() => handleSubmit(sug)}
-                          disabled={isSending}
-                          className="text-xs px-3 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-medium transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          {sug}
-                        </button>
-                      ))}
-                    </div>
-                  )}
               </div>
 
               {msg.role === 'user' && (
@@ -145,15 +157,36 @@ export const AgentChatView: React.FC<AgentChatViewProps> = ({
             </div>
           ))}
 
+          {/* Thinking indicator placed directly after optimistic user message */}
           {isSending && (
             <div className="flex gap-3 justify-start items-center">
-              <div className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-foreground shrink-0">
-                <RiLoader4Line className="w-4 h-4 animate-spin text-primary" />
+              <div className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-foreground shrink-0 shadow-xs mt-0.5">
+                <RiRobot2Line className="w-4 h-4 text-primary animate-pulse" />
               </div>
-              <div className="p-3 rounded-2xl rounded-tl-xs bg-card/60 border border-border text-xs text-muted-foreground flex items-center gap-2">
-                <RiSparklingLine className="w-3.5 h-3.5 text-primary animate-pulse" />
+              <div className="rounded-2xl rounded-tl-xs bg-card/60 text-muted-foreground border border-border px-4 py-3 text-xs leading-relaxed shadow-xs flex items-center gap-2">
+                <RiLoader4Line className="w-3.5 h-3.5 animate-spin text-primary" />
                 <span>OpenBot is thinking...</span>
               </div>
+            </div>
+          )}
+
+          {/* User-facing error message with retry button */}
+          {error && (
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs shadow-xs">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <RiErrorWarningLine className="w-4 h-4 shrink-0" />
+                <span className="truncate">{error}</span>
+              </div>
+              {lastFailedMessage && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(lastFailedMessage)}
+                  disabled={isSending}
+                  className="px-2.5 py-1 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium text-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  Retry
+                </button>
+              )}
             </div>
           )}
 

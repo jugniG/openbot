@@ -4,8 +4,6 @@ import {
   LoopOrchestrator,
   analyzeGoalWithConversation,
   refineAgentWithFollowUp,
-  runAgentPipeline,
-  evaluateAgentRun,
   executeInSolariSandbox,
 } from "@repo/agent-engine";
 import type {
@@ -13,7 +11,6 @@ import type {
   SessionEvent,
   AgentSpec,
   ChatMessage,
-  EvaluationCase,
 } from "@repo/types";
 import { prisma } from "#/db";
 import { env } from "#/env";
@@ -47,8 +44,17 @@ export const initiateAgentChat = os
       timestamp: new Date().toISOString(),
     };
 
-    // Analyze intent with LLM
-    const analysisRes = await analyzeGoalWithConversation([userMsg]);
+    // Analyze intent with LLM with graceful fallback
+    let analysisRes;
+    try {
+      analysisRes = await analyzeGoalWithConversation([userMsg]);
+    } catch (llmErr) {
+      console.warn("LLM initial analyze error:", llmErr);
+      analysisRes = {
+        status: "needs_clarification" as const,
+        question: "Hey! What kind of agent or automation are you looking to build today? Tell me what you have in mind.",
+      };
+    }
 
     let assistantMsg: ChatMessage;
     let agentSpec: AgentSpec;
@@ -58,7 +64,6 @@ export const initiateAgentChat = os
       assistantMsg = {
         role: "assistant",
         content: analysisRes.question,
-        quickSuggestions: analysisRes.quickSuggestions || [],
         timestamp: new Date().toISOString(),
       };
 
@@ -78,32 +83,57 @@ export const initiateAgentChat = os
       };
     } else {
       // Requirements are already satisfied! Synthesize immediately
-      const orchestrator = new LoopOrchestrator();
-      session = await orchestrator.runEngineeringLoop(
-        analysisRes.analysis.refinedPrompt || input.prompt,
-        `sess-${agentId}`,
-        [userMsg]
-      );
-      agentSpec = session.currentAgent || {
-        id: agentId,
-        name: analysisRes.analysis.agentName,
-        domain: analysisRes.analysis.domain,
-        goal: input.prompt.trim(),
-        version: 1,
-        versionTag: "v1",
-        architectureSummary: "Synthesized Autonomous Pipeline",
-        nodes: [],
-        edges: [],
-        availableTools: [],
-        messages: [userMsg],
-        createdAt: new Date().toISOString(),
-      };
-      const assistantReply: ChatMessage = {
-        role: "assistant",
-        content: `Engineered **${agentSpec.name}** [${agentSpec.architectureSummary}]. All 5 stages synthesized, verified, and ready!`,
-        timestamp: new Date().toISOString(),
-      };
-      agentSpec.messages = [userMsg, assistantReply];
+      try {
+        const orchestrator = new LoopOrchestrator();
+        session = await orchestrator.runEngineeringLoop(
+          analysisRes.analysis.refinedPrompt || input.prompt,
+          `sess-${agentId}`,
+          [userMsg]
+        );
+        agentSpec = session.currentAgent || {
+          id: agentId,
+          name: analysisRes.analysis.agentName,
+          domain: analysisRes.analysis.domain,
+          goal: input.prompt.trim(),
+          version: 1,
+          versionTag: "v1",
+          architectureSummary: "Synthesized Autonomous Pipeline",
+          nodes: [],
+          edges: [],
+          availableTools: [],
+          messages: [userMsg],
+          createdAt: new Date().toISOString(),
+        };
+        const assistantReply: ChatMessage = {
+          role: "assistant",
+          content: `Engineered **${agentSpec.name}** with ${agentSpec.nodes.length} stages [${agentSpec.architectureSummary}]. Ready to configure credentials and test.`,
+          timestamp: new Date().toISOString(),
+          requestedEnvs: agentSpec.requiredEnvs,
+        };
+        agentSpec.messages = [userMsg, assistantReply];
+      } catch (synthErr) {
+        console.warn("Initial synthesis fallback:", synthErr);
+        assistantMsg = {
+          role: "assistant",
+          content: "I understood your requirements, but encountered a temporary issue generating the complete pipeline. Let's refine the specifications together.",
+          quickSuggestions: ["Specify data format", "Add API credentials", "Confirm notifications channel"],
+          timestamp: new Date().toISOString(),
+        };
+        agentSpec = {
+          id: agentId,
+          name: analysisRes.analysis.agentName || (input.prompt.length > 40 ? `${input.prompt.slice(0, 40)}...` : input.prompt),
+          domain: analysisRes.analysis.domain || "general",
+          goal: input.prompt.trim(),
+          version: 0,
+          versionTag: "v0",
+          architectureSummary: "Interactive Requirements Interview",
+          nodes: [],
+          edges: [],
+          availableTools: [],
+          messages: [userMsg, assistantMsg],
+          createdAt: new Date().toISOString(),
+        };
+      }
     }
 
     // Persist immediately to Supabase PostgreSQL!
@@ -127,7 +157,7 @@ export const initiateAgentChat = os
 
     return {
       agent: agentSpec,
-      isReady: analysisRes.status === "ready",
+      isReady: agentSpec.version > 0 && agentSpec.nodes.length > 0,
       session,
     };
   });
@@ -720,6 +750,34 @@ export const runSpecialistExecution = os
       console.warn('Crypto vault decryption notice:', vaultErr);
     }
 
+    const runRecord = {
+      id: `run-${Math.floor(1000 + Math.random() * 9000)}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timeAgo: "Just now",
+      query: input.query,
+      triggerType: "Manual Trigger" as const,
+      durationMs: solariResult.durationMs,
+      sandboxId: solariResult.sandboxId,
+      microVmType: solariResult.microVmType,
+      status: solariResult.status,
+      exitCode: (solariResult as any).exitCode ?? (solariResult.status === "COMPLETED" ? 0 : 1),
+      terminalLogs: solariResult.terminalLogs,
+      outputPayload: solariResult.outputPayload,
+      nodeGraphSnapshot: specialist.nodes || [],
+    };
+
+    specialist.runs = [runRecord, ...(specialist.runs || [])];
+    try {
+      await prisma.agent.update({
+        where: { id: specialist.id },
+        data: {
+          spec: specialist as any,
+        },
+      });
+    } catch (saveRunErr) {
+      console.warn("Save run record to DB error:", saveRunErr);
+    }
+
     return {
       agentId: specialist.id,
       agentName: specialist.name,
@@ -734,6 +792,7 @@ export const runSpecialistExecution = os
       items: solariResult.items,
       emailPreview: solariResult.emailPreview,
       output: solariResult.outputSummary,
+      runRecord,
     };
   });
 
@@ -747,8 +806,9 @@ export const refineSpecialist = os
           role: z.enum(["user", "assistant"]),
           content: z.string(),
           timestamp: z.string().optional(),
-        })
-      ),
+          quickSuggestions: z.array(z.string()).optional(),
+        }).passthrough()
+      ).optional(),
     })
   )
   .handler(async ({ input }) => {
@@ -772,6 +832,7 @@ export const refineSpecialist = os
             role: m.role,
             content: m.content,
             timestamp: m.timestamp || new Date().toISOString(),
+            quickSuggestions: m.quickSuggestions,
           }))
         : [
             {
@@ -795,15 +856,59 @@ export const refineSpecialist = os
       },
     ];
 
+    // CRITICAL: Immediately persist the user message to database so it is NEVER lost on reload
+    currentAgent.messages = updatedMessages;
+    try {
+      await prisma.agent.update({
+        where: { id: currentAgent.id },
+        data: {
+          spec: {
+            ...currentAgent,
+            messages: updatedMessages,
+          } as any,
+        },
+      });
+    } catch (immediateSaveErr) {
+      console.warn("Prisma immediate user message persist warning:", immediateSaveErr);
+    }
+
     // Check if agent is currently in draft (interview / requirements gathering) mode
     if (currentAgent.version === 0 || !currentAgent.nodes || currentAgent.nodes.length === 0) {
-      const analysisRes = await analyzeGoalWithConversation(updatedMessages);
+      let analysisRes;
+      try {
+        analysisRes = await analyzeGoalWithConversation(updatedMessages);
+      } catch (llmErr: any) {
+        console.warn("analyzeGoalWithConversation failed, using fallback:", llmErr);
+        const fallbackReply: ChatMessage = {
+          role: "assistant",
+          content: "I ran into a temporary hiccup analyzing that. Could you tell me a bit more about what you'd like your agent to do?",
+          timestamp: new Date().toISOString(),
+        };
+        const fallbackAgent: AgentSpec = {
+          ...currentAgent,
+          messages: [...updatedMessages, fallbackReply],
+        };
+        savedSpecialists[specialistIndex] = fallbackAgent;
+        try {
+          await prisma.agent.update({
+            where: { id: fallbackAgent.id },
+            data: { spec: fallbackAgent as any },
+          });
+        } catch (dbErr) {
+          console.warn("DB fallback update error:", dbErr);
+        }
+        return {
+          agent: fallbackAgent,
+          mutationDiff: { summary: "Analysis retry needed", addedNodes: [], removedNodes: [], modifiedNodes: [] },
+          evalRun: null,
+          assistantReply: fallbackReply,
+        };
+      }
 
       if (analysisRes.status === "needs_clarification") {
         const assistantReply: ChatMessage = {
           role: "assistant",
           content: analysisRes.question,
-          quickSuggestions: analysisRes.quickSuggestions || [],
           timestamp: new Date().toISOString(),
         };
 
@@ -837,123 +942,165 @@ export const refineSpecialist = os
         };
       } else {
         // Status is 'ready'! Requirements established; synthesize autonomous pipeline
-        const orchestrator = new LoopOrchestrator();
-        const refinedPrompt = analysisRes.analysis?.refinedPrompt || currentAgent.goal;
-        const session = await orchestrator.runEngineeringLoop(
-          refinedPrompt,
-          `sess-${currentAgent.id}`,
-          updatedMessages
-        );
+        try {
+          const orchestrator = new LoopOrchestrator();
+          const refinedPrompt = analysisRes.analysis?.refinedPrompt || currentAgent.goal;
+          const session = await orchestrator.runEngineeringLoop(
+            refinedPrompt,
+            `sess-${currentAgent.id}`,
+            updatedMessages
+          );
 
-        let engineeredAgent = session.currentAgent;
-        if (!engineeredAgent) {
-          engineeredAgent = {
+          let engineeredAgent = session.currentAgent;
+          if (!engineeredAgent) {
+            engineeredAgent = {
+              ...currentAgent,
+              name: analysisRes.analysis?.agentName || currentAgent.name,
+              domain: analysisRes.analysis?.domain || currentAgent.domain,
+              version: 1,
+              versionTag: "v1",
+              architectureSummary: "Synthesized Autonomous Pipeline",
+              nodes: [],
+              edges: [],
+              availableTools: [],
+              messages: updatedMessages,
+            };
+          }
+          engineeredAgent.id = currentAgent.id;
+          engineeredAgent.version = 1;
+          engineeredAgent.versionTag = "v1";
+
+          const assistantReply: ChatMessage = {
+            role: "assistant",
+            content: `Engineered **${engineeredAgent.name}** with ${engineeredAgent.nodes.length} stages [${engineeredAgent.architectureSummary}]. Ready to configure credentials and test.`,
+            timestamp: new Date().toISOString(),
+            requestedEnvs: engineeredAgent.requiredEnvs,
+          };
+          engineeredAgent.messages = [...updatedMessages, assistantReply];
+          savedSpecialists[specialistIndex] = engineeredAgent;
+
+          try {
+            await prisma.agent.update({
+              where: { id: engineeredAgent.id },
+              data: {
+                name: engineeredAgent.name,
+                domain: engineeredAgent.domain,
+                currentVersion: 1,
+                architectureSummary: engineeredAgent.architectureSummary,
+                spec: engineeredAgent as any,
+              },
+            });
+          } catch (dbErr) {
+            console.warn("Prisma agent synthesis update error:", dbErr);
+          }
+
+          const finalStep = session.iterations[session.iterations.length - 1];
+          return {
+            agent: engineeredAgent,
+            mutationDiff: {
+              summary: `Synthesized initial pipeline (${engineeredAgent.nodes.length} stages)`,
+              addedNodes: engineeredAgent.nodes.map((n) => n.name),
+              removedNodes: [],
+              modifiedNodes: [],
+            },
+            evalRun: finalStep?.evaluationRun || null,
+            assistantReply,
+            session,
+          };
+        } catch (synthErr: any) {
+          console.warn("Synthesis loop fallback:", synthErr);
+          const assistantReply: ChatMessage = {
+            role: "assistant",
+            content: `I ran into an issue synthesizing the pipeline: ${synthErr.message || "Synthesis failed"}. You can refine your instructions or try again.`,
+            timestamp: new Date().toISOString(),
+          };
+          const fallbackAgent: AgentSpec = {
             ...currentAgent,
-            name: analysisRes.analysis?.agentName || currentAgent.name,
-            domain: analysisRes.analysis?.domain || currentAgent.domain,
-            version: 1,
-            versionTag: "v1",
-            architectureSummary: "Synthesized Autonomous Pipeline",
-            nodes: [],
-            edges: [],
-            availableTools: [],
-            messages: updatedMessages,
+            messages: [...updatedMessages, assistantReply],
+          };
+          savedSpecialists[specialistIndex] = fallbackAgent;
+          try {
+            await prisma.agent.update({
+              where: { id: fallbackAgent.id },
+              data: { spec: fallbackAgent as any },
+            });
+          } catch (dbErr) {
+            console.warn("DB synthesis fallback update error:", dbErr);
+          }
+          return {
+            agent: fallbackAgent,
+            mutationDiff: { summary: "Synthesis retry needed", addedNodes: [], removedNodes: [], modifiedNodes: [] },
+            evalRun: null,
+            assistantReply,
           };
         }
-        engineeredAgent.id = currentAgent.id;
-        engineeredAgent.version = 1;
-        engineeredAgent.versionTag = "v1";
-
-        const assistantReply: ChatMessage = {
-          role: "assistant",
-          content: `Engineered **${engineeredAgent.name}** [${engineeredAgent.architectureSummary}]. All 5 stages synthesized, verified, and ready!`,
-          timestamp: new Date().toISOString(),
-        };
-        engineeredAgent.messages = [...updatedMessages, assistantReply];
-        savedSpecialists[specialistIndex] = engineeredAgent;
-
-        try {
-          await prisma.agent.update({
-            where: { id: engineeredAgent.id },
-            data: {
-              name: engineeredAgent.name,
-              domain: engineeredAgent.domain,
-              currentVersion: 1,
-              architectureSummary: engineeredAgent.architectureSummary,
-              spec: engineeredAgent as any,
-            },
-          });
-        } catch (dbErr) {
-          console.warn("Prisma agent synthesis update error:", dbErr);
-        }
-
-        const finalStep = session.iterations[session.iterations.length - 1];
-        return {
-          agent: engineeredAgent,
-          mutationDiff: {
-            summary: `Synthesized initial pipeline (${engineeredAgent.nodes.length} stages)`,
-            addedNodes: engineeredAgent.nodes.map((n) => n.name),
-            removedNodes: [],
-            modifiedNodes: [],
-          },
-          evalRun: finalStep?.evaluationRun || null,
-          assistantReply,
-          session,
-        };
       }
     }
 
-    const { improvedAgent, mutationDiff } = await refineAgentWithFollowUp(
-      currentAgent,
-      input.followUpMessage,
-      updatedMessages
-    );
-
-    // Dynamic test execution on the mutated agent
-    const evalCase: EvaluationCase = {
-      id: `eval-refine-${improvedAgent.id}-${Date.now()}`,
-      name: `Refinement Suite: ${improvedAgent.name}`,
-      description: `Test for user refinement: ${input.followUpMessage}`,
-      domain: improvedAgent.domain,
-      input: {
-        taskDescription: input.followUpMessage,
-        baseGoal: improvedAgent.goal,
-      },
-      expectedOutcomes: ["Accuracy >= 88%", "Safety >= 90%"],
-    };
-
-    const execResult = await runAgentPipeline(improvedAgent, evalCase);
-    const evalRun = evaluateAgentRun(improvedAgent, evalCase, execResult);
-
-    const assistantReply: ChatMessage = {
-      role: "assistant",
-      content: `Refined architecture to **${improvedAgent.versionTag}** [${improvedAgent.architectureSummary}]: ${mutationDiff.summary}. Benchmark re-evaluation scored **${evalRun.overallScore}%** with all verification stages passed.`,
-      timestamp: new Date().toISOString(),
-    };
-
-    improvedAgent.messages = [...updatedMessages, assistantReply];
-    savedSpecialists[specialistIndex] = improvedAgent;
-
-    // Persist to Supabase PostgreSQL
     try {
-      await prisma.agent.update({
-        where: { id: improvedAgent.id },
-        data: {
-          currentVersion: improvedAgent.version,
-          architectureSummary: improvedAgent.architectureSummary,
-          spec: improvedAgent as any,
-        },
-      });
-    } catch (dbErr) {
-      console.warn("Prisma agent update fallback:", dbErr);
-    }
+      const { improvedAgent, mutationDiff } = await refineAgentWithFollowUp(
+        currentAgent,
+        input.followUpMessage,
+        updatedMessages
+      );
 
-    return {
-      agent: improvedAgent,
-      mutationDiff,
-      evalRun,
-      assistantReply,
-    };
+      const assistantReply: ChatMessage = {
+        role: "assistant",
+        content: `Updated architecture to **${improvedAgent.versionTag}** [${improvedAgent.architectureSummary}]: ${mutationDiff.summary}.`,
+        timestamp: new Date().toISOString(),
+        requestedEnvs: improvedAgent.requiredEnvs,
+      };
+
+      improvedAgent.messages = [...updatedMessages, assistantReply];
+      savedSpecialists[specialistIndex] = improvedAgent;
+
+      // Persist to Supabase PostgreSQL
+      try {
+        await prisma.agent.update({
+          where: { id: improvedAgent.id },
+          data: {
+            currentVersion: improvedAgent.version,
+            architectureSummary: improvedAgent.architectureSummary,
+            spec: improvedAgent as any,
+          },
+        });
+      } catch (dbErr) {
+        console.warn("Prisma agent update fallback:", dbErr);
+      }
+
+      return {
+        agent: improvedAgent,
+        mutationDiff,
+        evalRun: null,
+        assistantReply,
+      };
+    } catch (refineErr: any) {
+      console.warn("refineAgentWithFollowUp error fallback:", refineErr);
+      const assistantReply: ChatMessage = {
+        role: "assistant",
+        content: `I received your modification request, but encountered an issue updating the architecture: ${refineErr.message || "Refinement failed"}. Please try again.`,
+        timestamp: new Date().toISOString(),
+      };
+      const fallbackAgent: AgentSpec = {
+        ...currentAgent,
+        messages: [...updatedMessages, assistantReply],
+      };
+      savedSpecialists[specialistIndex] = fallbackAgent;
+      try {
+        await prisma.agent.update({
+          where: { id: fallbackAgent.id },
+          data: { spec: fallbackAgent as any },
+        });
+      } catch (dbErr) {
+        console.warn("DB refinement error update error:", dbErr);
+      }
+      return {
+        agent: fallbackAgent,
+        mutationDiff: { summary: "Refinement error fallback", addedNodes: [], removedNodes: [], modifiedNodes: [] },
+        evalRun: null,
+        assistantReply,
+      };
+    }
   });
 
 export const saveAgentEnv = os

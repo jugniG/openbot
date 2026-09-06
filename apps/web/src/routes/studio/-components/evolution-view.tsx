@@ -21,6 +21,7 @@ import {
   RiArrowRightSLine,
   RiArrowUpLine,
   RiKey2Line,
+  RiErrorWarningLine,
 } from 'react-icons/ri'
 import { N8nCanvas } from './n8n-canvas'
 import { EnvsPanel } from './envs-panel'
@@ -78,6 +79,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const agent: AgentSpec = finalIteration?.agentSpec || session.currentAgent
 
   const configuredEnvCount = Object.keys(agent.envs || {}).length
+  const missingEnvs = (agent.requiredEnvs || []).filter(
+    (k) => !agent.envs?.[k]?.encryptedValue
+  )
   const requiresEnvs =
     (agent.requiredEnvs && agent.requiredEnvs.length > 0) ||
     agent.nodes?.some(
@@ -101,13 +105,6 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const hasEnvs = configuredEnvCount > 0 || requiresEnvs
 
   const triggerNode = agent.nodes?.find((n) => n.type === 'trigger')
-  const actionNode = agent.nodes?.find(
-    (n) => n.type === 'action' || n.name.toLowerCase().includes('email') || n.name.toLowerCase().includes('dispatch')
-  )
-  const conversationText =
-    (agent.goal || '') + ' ' + (agent.messages?.map((m) => m.content).join(' ') || '') + ' ' + (session.goal || '')
-  const extractedEmail = conversationText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0]
-
   const rawSchedule = triggerNode?.parameters?.schedule as string | undefined
   const isScheduled = Boolean(
     rawSchedule &&
@@ -124,86 +121,15 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     ? `⚡ Webhook (${(triggerNode?.parameters?.event as string) || 'Event'})`
     : '▶ On-Demand'
 
-  const triggerDisplayText = isScheduled
-    ? `Scheduled (${rawSchedule})`
-    : isWebhook
-    ? `Webhook (${(triggerNode?.parameters?.event as string) || 'Incoming'})`
-    : 'Manual / On-Demand'
+  const [runs, setRuns] = useState<AgentRunRecord[]>(() => (agent as any)?.runs || [])
 
-  const recipientEmail = (actionNode?.parameters?.recipient as string) || extractedEmail || 'user@example.com'
+  useEffect(() => {
+    if ((agent as any)?.runs) {
+      setRuns((agent as any).runs)
+    }
+  }, [(agent as any)?.runs])
 
-  const seedRuns: AgentRunRecord[] = [
-    {
-      id: 'run-9482',
-      timestamp: '03:22 AM',
-      timeAgo: '2m ago',
-      query: agent.goal,
-      triggerType: isScheduled ? 'Scheduled Cron' : isWebhook ? 'API Webhook' : 'Manual Trigger',
-      durationMs: 420,
-      sandboxId: 'sbx-789a12',
-      microVmType: 'Isolated Sandbox Runtime (Linux 6.6)',
-      status: 'COMPLETED',
-      exitCode: 0,
-      terminalLogs: [
-        `[00:00:01] [INFO]  ⚡ Spawning ephemeral sandbox (sbx-789a12)...`,
-        `[00:00:01] [INFO]  🔒 Hardware-isolated runtime active (Linux 6.6, 1vCPU, 2GB RAM)`,
-        `[00:00:01] [STAGE] 📦 Ingesting agent DAG: "${agent.name}" (${agent.nodes?.length || 0} connected nodes)`,
-        `[00:00:02] [STAGE] ▶ Stage 1 (${triggerNode?.name || 'Initiation'}): Trigger: ${triggerDisplayText}`,
-        `[00:00:02] [TOOL]  ▶ Stage 2: Dispatched tool integrations and platform scrapers`,
-        `[00:00:03] [STAGE] ▶ Stage 3: LLM reasoning, schema validation, and deduplication passed`,
-        `[00:00:04] [STAGE] ▶ Stage 4 (${actionNode?.name || 'Action'}): Delivery action compiled for ${recipientEmail}`,
-        `[00:00:04] [SUCCESS] ✔ Sandbox run completed successfully (exit code 0). Environment released.`,
-      ],
-      outputPayload: {
-        status: 'SUCCESS',
-        exitCode: 0,
-        sandboxId: 'sbx-789a12',
-        durationMs: 420,
-        nodesExecuted: agent.nodes?.length || 0,
-        trigger: triggerDisplayText,
-        actionTarget: recipientEmail,
-        summary: `Autonomous run completed across all ${agent.nodes?.length || 0} stages with zero execution errors.`,
-      },
-      nodeGraphSnapshot: agent.nodes ? [...agent.nodes] : [],
-    },
-    {
-      id: 'run-8910',
-      timestamp: '09:22 PM',
-      timeAgo: isScheduled ? '6h ago' : 'Yesterday',
-      query: agent.goal,
-      triggerType: isScheduled ? 'Scheduled Cron' : isWebhook ? 'API Webhook' : 'Manual Trigger',
-      durationMs: 385,
-      sandboxId: 'sbx-342b99',
-      microVmType: 'Isolated Sandbox Runtime (Linux 6.6)',
-      status: 'COMPLETED',
-      exitCode: 0,
-      terminalLogs: [
-        isScheduled
-          ? `[00:00:01] [INFO]  ⏰ Cron interval timer triggered scheduled run (${rawSchedule}) for "${agent.name}"`
-          : isWebhook
-          ? `[00:00:01] [INFO]  ⚡ Webhook event received: "${triggerNode?.parameters?.event || 'push'}"`
-          : `[00:00:01] [INFO]  ▶ Manual execution initiated for "${agent.name}"`,
-        `[00:00:01] [INFO]  Provisioned ephemeral sandbox runtime (sbx-342b99)`,
-        `[00:00:02] [STAGE] Ingested input payload and checked source updates`,
-        `[00:00:03] [TOOL]  Executed intermediate tool calls against gateway`,
-        `[00:00:04] [STAGE] Emitted verified payload`,
-        `[00:00:04] [SUCCESS] Exit code 0. Clean shutdown.`,
-      ],
-      outputPayload: {
-        status: 'SUCCESS',
-        exitCode: 0,
-        sandboxId: 'sbx-342b99',
-        durationMs: 385,
-        nodesExecuted: agent.nodes?.length || 0,
-        trigger: triggerDisplayText,
-      },
-      nodeGraphSnapshot: agent.nodes ? [...agent.nodes] : [],
-    },
-  ]
-
-  const [runs, setRuns] = useState<AgentRunRecord[]>(seedRuns)
-
-  const openedRun = runs.find((r) => r.id === openedRunId) || runs[0]
+  const openedRun = openedRunId ? runs.find((r) => r.id === openedRunId) : (runs.length > 0 ? runs[0] : null)
 
   const filteredRuns = runs.filter((r) => {
     if (runsFilter === 'COMPLETED' && r.status !== 'COMPLETED') return false
@@ -220,32 +146,59 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     return true
   })
 
-  const messages: ChatMessage[] =
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>(() =>
     agent?.messages && agent.messages.length > 0
       ? agent.messages
       : [
           { role: 'user', content: session.goal },
           {
             role: 'assistant',
-            content: `Engineered autonomous ${agent?.name}. Workflow synthesized into ${agent.nodes.length} stages (Trigger: ${triggerDisplayText}, Workers, Action to ${recipientEmail}). Check Runs for execution logs or chat to modify parameters.`,
+            content: `Engineered **${agent?.name}** with ${agent.nodes?.length || 0} stages. Ready to configure credentials and run tests.`,
           },
         ]
+  )
+  const [chatError, setChatError] = useState<string | null>(null)
+  const [lastFailedRefine, setLastFailedRefine] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (agent?.messages && agent.messages.length > 0) {
+      setLocalMessages(agent.messages)
+      setChatError(null)
+      setLastFailedRefine(null)
+    }
+  }, [agent?.id, agent?.messages])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, isRefining])
+  }, [localMessages.length, isRefining, chatError])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleRefineSubmit = async (e?: React.FormEvent) => {
+  const handleRefineSubmit = async (customText?: string, e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    if (!refineInput.trim() || isRefining || !onRefineAgent) return
-    const text = refineInput.trim()
+    const text = (customText || refineInput).trim()
+    if (!text || isRefining || !onRefineAgent) return
     setRefineInput('')
+    setChatError(null)
+    setLastFailedRefine(null)
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-    await onRefineAgent(text)
+
+    const optimisticMsg: ChatMessage = {
+      role: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+    }
+    setLocalMessages((prev) => [...prev, optimisticMsg])
+
+    try {
+      await onRefineAgent(text)
+    } catch (err: any) {
+      console.error('Refine agent error:', err)
+      setChatError(err?.message || 'Failed to refine agent. Please try again.')
+      setLastFailedRefine(text)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -273,7 +226,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       if (onExecuteSpecialist) {
         res = await onExecuteSpecialist(agent.goal)
       }
-      const newRun: AgentRunRecord = {
+      const newRun: AgentRunRecord = res?.runRecord || {
         id: `run-${Math.floor(1000 + Math.random() * 9000)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         timeAgo: 'Just now',
@@ -367,7 +320,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
-            {messages.map((m, idx) => (
+            {localMessages.map((m, idx) => (
               <div
                 key={idx}
                 className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -394,27 +347,6 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                   >
                     {m.content}
                   </div>
-
-                  {/* Interactive Quick Suggestion Chips */}
-                  {m.quickSuggestions && m.quickSuggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {m.quickSuggestions.map((sug, sIdx) => (
-                        <button
-                          key={sIdx}
-                          type="button"
-                          onClick={() => {
-                            if (!isRefining && onRefineAgent) {
-                              onRefineAgent(sug)
-                            }
-                          }}
-                          disabled={isRefining}
-                          className="px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[11px] font-medium transition-colors cursor-pointer"
-                        >
-                          {sug}
-                        </button>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Separate Component: Prompt for Environment Variables when Agent Asks */}
                   {m.role === 'assistant' && (() => {
@@ -457,11 +389,31 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             ))}
 
             {isRefining && (
-              <div className="flex gap-2 items-center text-xs text-muted-foreground">
+              <div className="flex gap-2 items-center text-xs text-muted-foreground p-1">
                 <RiLoader4Line className="w-3.5 h-3.5 animate-spin text-primary" />
                 <span>Updating node parameters in real-time...</span>
               </div>
             )}
+
+            {chatError && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs shadow-xs">
+                <div className="flex items-center gap-2 min-w-0 pr-2">
+                  <RiErrorWarningLine className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{chatError}</span>
+                </div>
+                {lastFailedRefine && (
+                  <button
+                    type="button"
+                    onClick={() => handleRefineSubmit(lastFailedRefine)}
+                    disabled={isRefining}
+                    className="px-2.5 py-1 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium text-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
+
             <div ref={chatEndRef} />
           </div>
 
@@ -552,8 +504,14 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                 >
                   <RiKey2Line className="w-3.5 h-3.5 text-amber-400" />
                   <span>Envs & Secrets</span>
-                  <span className="text-[10px] font-mono px-1 rounded-full bg-amber-500/10 text-amber-400 font-bold">
-                    {configuredEnvCount}
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
+                      missingEnvs.length > 0
+                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        : 'bg-amber-500/10 text-amber-400'
+                    }`}
+                  >
+                    {missingEnvs.length > 0 ? `${missingEnvs.length} missing` : configuredEnvCount}
                   </span>
                 </button>
               )}

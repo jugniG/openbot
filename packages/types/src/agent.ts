@@ -73,6 +73,20 @@ export const ChatMessageSchema = z.object({
   timestamp: z.string().optional(),
   quickSuggestions: z.array(z.string()).optional(),
   requestedEnvs: z.array(z.string()).optional(),
+  toolCall: z
+    .object({
+      name: z.string(),
+      args: z.record(z.any()),
+    })
+    .optional(),
+  toolResult: z
+    .object({
+      exitCode: z.number(),
+      stdout: z.string().optional(),
+      stderr: z.string().optional(),
+      output: z.any().optional(),
+    })
+    .optional(),
 });
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -91,6 +105,7 @@ export const AgentSpecSchema = z.object({
   messages: z.array(ChatMessageSchema).optional(),
   envs: z.record(AgentEnvVarSchema).optional(),
   requiredEnvs: z.array(z.string()).optional(),
+  runs: z.array(z.any()).optional(),
   createdAt: z.string(),
 });
 

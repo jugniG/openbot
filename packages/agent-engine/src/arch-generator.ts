@@ -60,6 +60,20 @@ Success Criteria: ${JSON.stringify(analysis.successCriteria)}`;
   }));
   const edges = Array.isArray(spec.edges) ? spec.edges : [];
 
+  const requiredEnvsSet = new Set<string>(
+    Array.isArray(spec.requiredEnvs) ? spec.requiredEnvs : []
+  );
+  for (const n of nodes) {
+    for (const tId of n.assignedTools || []) {
+      const def = availableTools.find((t) => t.id === tId);
+      if (def?.requiredEnvs) {
+        for (const e of def.requiredEnvs) {
+          requiredEnvsSet.add(e);
+        }
+      }
+    }
+  }
+
   return {
     ...spec,
     id: spec.id || `agent-${analysis.domain}-${Date.now()}`,
@@ -70,6 +84,7 @@ Success Criteria: ${JSON.stringify(analysis.successCriteria)}`;
     goal: userGoal,
     nodes,
     edges,
+    requiredEnvs: Array.from(requiredEnvsSet),
     architectureSummary: spec.architectureSummary || (nodes.length > 0 ? nodes.map((n: any) => n.name).join(" -> ") : "Stage 1 -> Stage 2"),
     availableTools,
     createdAt: new Date().toISOString(),

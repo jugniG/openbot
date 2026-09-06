@@ -53,7 +53,7 @@ export const IterationStepSchema = z.object({
   iterationIndex: z.number(), // 0 for v0, 1 for v1
   versionTag: z.string(), // "v0", "v1"
   agentSpec: AgentSpecSchema,
-  evaluationRun: EvaluationRunSchema,
+  evaluationRun: EvaluationRunSchema.optional(),
   failureDiagnosis: FailureDiagnosisSchema.optional(),
   mutationDiff: MutationDiffSchema.optional(),
   targetReached: z.boolean(),

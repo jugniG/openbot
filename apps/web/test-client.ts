@@ -44,10 +44,12 @@ async function runFullSuite() {
     const v0 = session.iterations[0];
     console.log(`    [Iteration 0 - Baseline ${v0.versionTag}]`);
     console.log(`      Architecture: ${v0.agentSpec.architectureSummary}`);
-    console.log(`      Overall Score: ${v0.evaluationRun.overallScore}% (PASSED: ${v0.evaluationRun.passed})`);
-    console.log(`      Metrics:`);
-    for (const m of v0.evaluationRun.metrics) {
-      console.log(`        - ${m.name}: ${m.score}% (Passed: ${m.passed})`);
+    if (v0.evaluationRun) {
+      console.log(`      Overall Score: ${v0.evaluationRun.overallScore}% (PASSED: ${v0.evaluationRun.passed})`);
+      console.log(`      Metrics:`);
+      for (const m of v0.evaluationRun.metrics) {
+        console.log(`        - ${m.name}: ${m.score}% (Passed: ${m.passed})`);
+      }
     }
     console.log(`      Failure Diagnosis: ${v0.failureDiagnosis?.summary}`);
     console.log(`      Root Causes Identified:`);
@@ -61,14 +63,18 @@ async function runFullSuite() {
 
     // Iteration 1 (v1)
     const v1 = session.iterations[1];
-    console.log(`    [Iteration 1 - Improved ${v1.versionTag}]`);
-    console.log(`      New Architecture: ${v1.agentSpec.architectureSummary}`);
-    console.log(`      Overall Score: ${v1.evaluationRun.overallScore}% (PASSED: ${v1.evaluationRun.passed})`);
-    console.log(`      Metrics:`);
-    for (const m of v1.evaluationRun.metrics) {
-      console.log(`        - ${m.name}: ${m.score}% (+${m.delta}%) (Passed: ${m.passed})`);
+    if (v1) {
+      console.log(`    [Iteration 1 - Improved ${v1.versionTag}]`);
+      console.log(`      New Architecture: ${v1.agentSpec.architectureSummary}`);
+      if (v1.evaluationRun) {
+        console.log(`      Overall Score: ${v1.evaluationRun.overallScore}% (PASSED: ${v1.evaluationRun.passed})`);
+        console.log(`      Metrics:`);
+        for (const m of v1.evaluationRun.metrics) {
+          console.log(`        - ${m.name}: ${m.score}% (+${m.delta}%) (Passed: ${m.passed})`);
+        }
+      }
+      console.log(`      Target Reached: ${v1.targetReached}`);
     }
-    console.log(`      Target Reached: ${v1.targetReached}`);
 
     // Execute the engineered agent on custom task
     console.log(`    [Live Specialist Test Run]`);

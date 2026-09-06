@@ -63,7 +63,9 @@ export const EngineeringPanel: React.FC<EngineeringPanelProps> = ({
 
   const isFinalSuccess = v1?.targetReached
   const netDelta =
-    v1 && v0 ? v1.evaluationRun.overallScore - v0.evaluationRun.overallScore : 0
+    v1?.evaluationRun && v0?.evaluationRun
+      ? v1.evaluationRun.overallScore - v0.evaluationRun.overallScore
+      : 0
 
   return (
     <div className="flex flex-col h-full bg-card border-l border-border text-foreground font-sans overflow-hidden">
@@ -104,7 +106,7 @@ export const EngineeringPanel: React.FC<EngineeringPanelProps> = ({
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
         {/* Core Thesis Score Jump Card */}
-        {v0 && v1 && session.iterations.length > 1 && (
+        {v0?.evaluationRun && v1?.evaluationRun && session.iterations.length > 1 && (
           <div className="p-4 rounded-xl bg-muted/40 border border-border text-xs shadow-xs">
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider font-semibold">
               Autonomous Optimization Result
@@ -161,15 +163,21 @@ export const EngineeringPanel: React.FC<EngineeringPanelProps> = ({
                 }`}
               >
                 <span>{idx === 0 ? 'Baseline' : 'Verified'}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded ${
-                    step.evaluationRun.passed
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'bg-amber-500/10 text-amber-400'
-                  }`}
-                >
-                  {step.evaluationRun.overallScore}%
-                </span>
+                {step.evaluationRun ? (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded ${
+                      step.evaluationRun.passed
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'bg-amber-500/10 text-amber-400'
+                    }`}
+                  >
+                    {step.evaluationRun.overallScore}%
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                    Draft
+                  </span>
+                )}
               </button>
             )
           })}
@@ -214,14 +222,19 @@ export const EngineeringPanel: React.FC<EngineeringPanelProps> = ({
 
         {/* Active Tab View */}
         <div className="pt-1">
-          {inspectorTab === 'metrics' && (
-            <MetricRadar
-              metrics={currentStep.evaluationRun.metrics}
-              overallScore={currentStep.evaluationRun.overallScore}
-              versionTag={currentStep.versionTag}
-              targetScore={session.targetOverallScore}
-            />
-          )}
+          {inspectorTab === 'metrics' &&
+            (currentStep.evaluationRun ? (
+              <MetricRadar
+                metrics={currentStep.evaluationRun.metrics}
+                overallScore={currentStep.evaluationRun.overallScore}
+                versionTag={currentStep.versionTag}
+                targetScore={session.targetOverallScore}
+              />
+            ) : (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                No evaluation benchmark recorded yet. Run tests to generate metrics.
+              </div>
+            ))}
 
           {inspectorTab === 'diagnosis' && (
             <FailureCard diagnosis={currentStep.failureDiagnosis} />

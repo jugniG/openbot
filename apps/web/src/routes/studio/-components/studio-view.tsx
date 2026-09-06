@@ -7,7 +7,6 @@ import type { AgentSpec, EngineeringSession, MetricScore } from '@repo/types'
 import { AgentSidebar } from './agent-sidebar'
 import { CreateHero } from './create-hero'
 import { AgentChatView } from './agent-chat-view'
-import { EngineeringView } from './engineering-view'
 import { EvolutionView } from './evolution-view'
 import {
   ContextualInspector,
@@ -325,8 +324,6 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
     initialAgent ? buildSessionForAgent(initialAgent) : undefined,
   )
   const [isRunning, setIsRunning] = useState(false)
-  const [currentStage, setCurrentStage] = useState('Idle')
-  const [activeGoal, setActiveGoal] = useState('')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   // Modals & Drawers
@@ -334,14 +331,6 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
   const [inspectorContent, setInspectorContent] =
     useState<InspectorContent>(null)
-
-  const [statusChecks, setStatusChecks] = useState({
-    goalUnderstood: false,
-    archGenerated: false,
-    agentExecuted: false,
-    failuresDiagnosed: false,
-    agentImproved: false,
-  })
 
   const selectAgentInternal = useCallback((agent: AgentSpec) => {
     setSelectedAgent(agent)
@@ -393,7 +382,6 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
       if (selectedAgent && !isRunning) {
         setSelectedAgent(undefined)
         setSession(undefined)
-        setActiveGoal('')
       }
       return
     }
@@ -431,6 +419,7 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
       })
     } catch (err) {
       console.error('Failed to initiate agent chat:', err)
+      throw err
     } finally {
       setIsCreatingChat(false)
     }
@@ -474,6 +463,7 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
       setSpecialists(updatedList)
     } catch (err) {
       console.error('Failed to refine agent:', err)
+      throw err
     } finally {
       setIsRefining(false)
     }
@@ -492,16 +482,7 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
     })
     setSession(undefined)
     setSelectedAgent(undefined)
-    setActiveGoal('')
     setIsRunning(false)
-    setCurrentStage('Idle')
-    setStatusChecks({
-      goalUnderstood: false,
-      archGenerated: false,
-      agentExecuted: false,
-      failuresDiagnosed: false,
-      agentImproved: false,
-    })
   }
 
   const handleExecuteSpecialist = async (query: string) => {

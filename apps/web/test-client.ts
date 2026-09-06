@@ -40,9 +40,9 @@ async function runFullSuite() {
     console.log(`    Domain Detected: ${session.domain.toUpperCase()}`);
     console.log(`    Total Iterations: ${session.iterations.length}`);
 
-    // Iteration 0 (v0)
+    // Iteration 0
     const v0 = session.iterations[0];
-    console.log(`    [Iteration 0 - Baseline ${v0.versionTag}]`);
+    console.log(`    [Iteration 0 - Baseline]`);
     console.log(`      Architecture: ${v0.agentSpec.architectureSummary}`);
     if (v0.evaluationRun) {
       console.log(`      Overall Score: ${v0.evaluationRun.overallScore}% (PASSED: ${v0.evaluationRun.passed})`);
@@ -61,10 +61,10 @@ async function runFullSuite() {
       console.log(`        + ${mut}`);
     }
 
-    // Iteration 1 (v1)
+    // Iteration 1
     const v1 = session.iterations[1];
     if (v1) {
-      console.log(`    [Iteration 1 - Improved ${v1.versionTag}]`);
+      console.log(`    [Iteration 1 - Improved]`);
       console.log(`      New Architecture: ${v1.agentSpec.architectureSummary}`);
       if (v1.evaluationRun) {
         console.log(`      Overall Score: ${v1.evaluationRun.overallScore}% (PASSED: ${v1.evaluationRun.passed})`);

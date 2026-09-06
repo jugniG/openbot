@@ -6,7 +6,6 @@ interface MetricRadarProps {
   metrics: MetricScore[]
   overallScore: number
   targetScore: number
-  versionTag?: string
 }
 
 export const MetricRadar: React.FC<MetricRadarProps> = ({

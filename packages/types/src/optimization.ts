@@ -27,8 +27,8 @@ export type MutationAction = z.infer<typeof MutationActionSchema>;
 
 export const MutationDiffSchema = z.object({
   id: z.string(),
-  fromVersion: z.number(),
-  toVersion: z.number(),
+  fromVersion: z.number().optional(),
+  toVersion: z.number().optional(),
   actions: z.array(MutationActionSchema),
   summary: z.string(),
   promptDiffs: z.array(
@@ -50,8 +50,8 @@ export const MutationDiffSchema = z.object({
 export type MutationDiff = z.infer<typeof MutationDiffSchema>;
 
 export const IterationStepSchema = z.object({
-  iterationIndex: z.number(), // 0 for v0, 1 for v1
-  versionTag: z.string(), // "v0", "v1"
+  iterationIndex: z.number(),
+  versionTag: z.string().optional(),
   agentSpec: AgentSpecSchema,
   evaluationRun: EvaluationRunSchema.optional(),
   failureDiagnosis: FailureDiagnosisSchema.optional(),

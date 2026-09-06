@@ -27,9 +27,6 @@ export async function optimizeAgent(
   currentAgent: AgentSpec,
   diagnosis: FailureDiagnosis
 ): Promise<OptimizationResult> {
-  const newVersion = currentAgent.version + 1;
-  const newVersionTag = `v${newVersion}`;
-
   const systemPrompt = `You are the Agent Optimizer inside OpenBot (Automated Agent Engineering Factory).
 Your role: Mutate the current agent architecture to solve the diagnosed root causes.
 
@@ -52,7 +49,7 @@ Output Schema:
   "promptDiffs": [ { "nodeId": "string", "nodeName": "string", "oldPrompt": "string", "newPrompt": "string" } ]
 }`;
 
-  const userPrompt = `Mutate and improve Agent: "${currentAgent.name}" (${currentAgent.versionTag})
+  const userPrompt = `Mutate and improve Agent: "${currentAgent.name}"
 Goal: "${currentAgent.goal}"
 Current Nodes: ${JSON.stringify(currentAgent.nodes)}
 Current Edges: ${JSON.stringify(currentAgent.edges)}
@@ -76,8 +73,6 @@ Proposed Fixes: ${JSON.stringify(diagnosis.proposedMutations)}`;
 
   const improvedAgent: AgentSpec = {
     ...currentAgent,
-    version: newVersion,
-    versionTag: newVersionTag,
     architectureSummary: res.architectureSummary || currentAgent.architectureSummary,
     nodes: newNodes,
     edges: Array.isArray(res.newEdges) ? res.newEdges : currentAgent.edges,
@@ -85,9 +80,7 @@ Proposed Fixes: ${JSON.stringify(diagnosis.proposedMutations)}`;
   };
 
   const mutationDiff: MutationDiff = {
-    id: `diff-v${currentAgent.version}-v${newVersion}-${Date.now()}`,
-    fromVersion: currentAgent.version,
-    toVersion: newVersion,
+    id: `diff-${Date.now()}`,
     summary: res.mutationSummary,
     actions: res.topologyDiffs.map((td) => ({
       type: td.action === "added_node" ? "add_stage" : "rewire_edge",
@@ -109,9 +102,6 @@ export async function refineAgentWithFollowUp(
   followUpPrompt: string,
   updatedMessages: ChatMessage[]
 ): Promise<OptimizationResult> {
-  const newVersion = currentAgent.version + 1;
-  const newVersionTag = `v${newVersion}`;
-
   const systemPrompt = `You are the Lead Agent Architect inside OpenBot (Automated Agent Engineering Factory).
 The user is providing an incremental modification or refinement instruction for an existing agent (e.g., changing schedule, changing recipient email, changing search filters).
 Your role: Mutate and refine the agent's architecture, nodes, tools, parameters, and system prompts to fulfill the user's new instruction while preserving existing capabilities.
@@ -142,7 +132,7 @@ Output Schema:
   "promptDiffs": [ { "nodeId": "string", "nodeName": "string", "oldPrompt": "string", "newPrompt": "string" } ]
 }`;
 
-  const userPrompt = `Existing Agent: "${currentAgent.name}" (${currentAgent.versionTag})
+  const userPrompt = `Existing Agent: "${currentAgent.name}"
 Current Goal: "${currentAgent.goal}"
 Current Nodes: ${JSON.stringify(currentAgent.nodes)}
 Current Edges: ${JSON.stringify(currentAgent.edges)}
@@ -180,8 +170,6 @@ ${updatedMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
 
   const improvedAgent: AgentSpec = {
     ...currentAgent,
-    version: newVersion,
-    versionTag: newVersionTag,
     architectureSummary: res.architectureSummary || currentAgent.architectureSummary,
     nodes: newNodes,
     edges: Array.isArray(res.newEdges) ? res.newEdges : currentAgent.edges,
@@ -191,9 +179,7 @@ ${updatedMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n")
   };
 
   const mutationDiff: MutationDiff = {
-    id: `diff-v${currentAgent.version}-v${newVersion}-${Date.now()}`,
-    fromVersion: currentAgent.version,
-    toVersion: newVersion,
+    id: `diff-${Date.now()}`,
     summary: res.mutationSummary,
     actions: res.topologyDiffs.map((td) => ({
       type: td.action === "added_node" ? "add_stage" : "rewire_edge",

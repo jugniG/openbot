@@ -227,7 +227,6 @@ export const EngineeringPanel: React.FC<EngineeringPanelProps> = ({
               <MetricRadar
                 metrics={currentStep.evaluationRun.metrics}
                 overallScore={currentStep.evaluationRun.overallScore}
-                versionTag={currentStep.versionTag}
                 targetScore={session.targetOverallScore}
               />
             ) : (

@@ -77,8 +77,6 @@ Success Criteria: ${JSON.stringify(analysis.successCriteria)}`;
   return {
     ...spec,
     id: spec.id || `agent-${analysis.domain}-${Date.now()}`,
-    version: 0,
-    versionTag: "v0",
     name: analysis.agentName,
     domain: analysis.domain,
     goal: userGoal,

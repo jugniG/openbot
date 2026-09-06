@@ -72,8 +72,6 @@ export const initiateAgentChat = os
         name: input.prompt.length > 40 ? `${input.prompt.slice(0, 40)}...` : input.prompt,
         domain: "general",
         goal: input.prompt.trim(),
-        version: 0,
-        versionTag: "v0",
         architectureSummary: "Interactive Requirements Interview",
         nodes: [],
         edges: [],
@@ -95,8 +93,6 @@ export const initiateAgentChat = os
           name: analysisRes.analysis.agentName,
           domain: analysisRes.analysis.domain,
           goal: input.prompt.trim(),
-          version: 1,
-          versionTag: "v1",
           architectureSummary: "Synthesized Autonomous Pipeline",
           nodes: [],
           edges: [],
@@ -124,8 +120,6 @@ export const initiateAgentChat = os
           name: analysisRes.analysis.agentName || (input.prompt.length > 40 ? `${input.prompt.slice(0, 40)}...` : input.prompt),
           domain: analysisRes.analysis.domain || "general",
           goal: input.prompt.trim(),
-          version: 0,
-          versionTag: "v0",
           architectureSummary: "Interactive Requirements Interview",
           nodes: [],
           edges: [],
@@ -144,7 +138,7 @@ export const initiateAgentChat = os
           name: agentSpec.name,
           domain: agentSpec.domain,
           goal: agentSpec.goal,
-          currentVersion: agentSpec.version,
+          currentVersion: 1,
           architectureSummary: agentSpec.architectureSummary,
           spec: agentSpec as any,
         },
@@ -155,7 +149,7 @@ export const initiateAgentChat = os
 
     return {
       agent: agentSpec,
-      isReady: agentSpec.version > 0 && agentSpec.nodes.length > 0,
+      isReady: agentSpec.nodes.length > 0,
       session,
     };
   });
@@ -208,12 +202,12 @@ export const startEngineeringSession = os
             name: finalStep.agentSpec.name,
             domain: finalStep.agentSpec.domain,
             goal: finalStep.agentSpec.goal,
-            currentVersion: finalStep.agentSpec.version,
+            currentVersion: 1,
             architectureSummary: finalStep.agentSpec.architectureSummary || "Multi-stage pipeline",
             spec: finalStep.agentSpec as any,
           },
           update: {
-            currentVersion: finalStep.agentSpec.version,
+            currentVersion: 1,
             architectureSummary: finalStep.agentSpec.architectureSummary || "Multi-stage pipeline",
             spec: finalStep.agentSpec as any,
           },
@@ -475,7 +469,7 @@ export const refineSpecialist = os
             },
             {
               role: "assistant",
-              content: `Engineered autonomous ${currentAgent.name} (${currentAgent.versionTag}). Pipeline: ${currentAgent.architectureSummary}.`,
+              content: `Engineered autonomous ${currentAgent.name}. Pipeline: ${currentAgent.architectureSummary}.`,
               timestamp: currentAgent.createdAt || new Date().toISOString(),
             },
           ];
@@ -506,7 +500,7 @@ export const refineSpecialist = os
     }
 
     // Check if agent is currently in draft (interview / requirements gathering) mode
-    if (currentAgent.version === 0 || !currentAgent.nodes || currentAgent.nodes.length === 0) {
+    if (!currentAgent.nodes || currentAgent.nodes.length === 0) {
       let analysisRes;
       try {
         analysisRes = await analyzeGoalWithConversation(updatedMessages);
@@ -588,8 +582,6 @@ export const refineSpecialist = os
               ...currentAgent,
               name: analysisRes.analysis?.agentName || currentAgent.name,
               domain: analysisRes.analysis?.domain || currentAgent.domain,
-              version: 1,
-              versionTag: "v1",
               architectureSummary: "Synthesized Autonomous Pipeline",
               nodes: [],
               edges: [],
@@ -598,8 +590,6 @@ export const refineSpecialist = os
             };
           }
           engineeredAgent.id = currentAgent.id;
-          engineeredAgent.version = 1;
-          engineeredAgent.versionTag = "v1";
 
           const assistantReply: ChatMessage = {
             role: "assistant",
@@ -675,7 +665,7 @@ export const refineSpecialist = os
 
       const assistantReply: ChatMessage = {
         role: "assistant",
-        content: `Updated architecture to **${improvedAgent.versionTag}** [${improvedAgent.architectureSummary}]: ${mutationDiff.summary}.`,
+        content: `Updated architecture [${improvedAgent.architectureSummary}]: ${mutationDiff.summary}.`,
         timestamp: new Date().toISOString(),
         requestedEnvs: improvedAgent.requiredEnvs,
       };
@@ -687,7 +677,7 @@ export const refineSpecialist = os
         await prisma.agent.update({
           where: { id: improvedAgent.id },
           data: {
-            currentVersion: improvedAgent.version,
+            currentVersion: 1,
             architectureSummary: improvedAgent.architectureSummary,
             spec: improvedAgent as any,
           },

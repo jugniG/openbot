@@ -146,7 +146,7 @@ function generateMetricsForAgent(agent: AgentSpec, isOptimized: boolean): Metric
 }
 
 function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
-  const isDraft = !agent.nodes || agent.nodes.length === 0 || agent.version === 0
+  const isDraft = !agent.nodes || agent.nodes.length === 0
 
   if (isDraft) {
     return {
@@ -158,12 +158,10 @@ function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
       iterations: [
         {
           iterationIndex: 0,
-          versionTag: 'v0',
           agentSpec: agent,
           evaluationRun: {
-            id: `eval-v0-${agent.id}`,
+            id: `eval-${agent.id}`,
             caseId: `case-${agent.id}`,
-            agentVersion: 0,
             timestamp: agent.createdAt,
             overallScore: 0,
             metrics: [],
@@ -173,8 +171,7 @@ function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
           },
           failureDiagnosis: {
             id: `diag-${agent.id}`,
-            runId: `eval-v0-${agent.id}`,
-            agentVersion: 0,
+            runId: `eval-${agent.id}`,
             summary: 'Requirements clarification in progress.',
             rootCauses: [],
             recommendations: [],
@@ -182,8 +179,6 @@ function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
           },
           mutationDiff: {
             id: `diff-${agent.id}`,
-            fromVersion: 0,
-            toVersion: 0,
             summary: 'Initial draft session',
             actions: [],
             topologyDiffs: [],
@@ -208,85 +203,21 @@ function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
     iterations: [
       {
         iterationIndex: 0,
-        versionTag: 'v0',
-        agentSpec: {
-          ...agent,
-          version: 0,
-          versionTag: 'v0',
-          nodes: agent.nodes.slice(0, Math.max(1, agent.nodes.length - 1)),
-          edges: agent.edges.slice(0, Math.max(1, agent.edges.length - 1)),
-        },
-        evaluationRun: {
-          id: `eval-v0-${agent.id}`,
-          caseId: `case-${agent.id}`,
-          agentVersion: 0,
-          timestamp: agent.createdAt,
-          overallScore: 66,
-          metrics: generateMetricsForAgent(agent, false),
-          passed: false,
-          nodeTraces: [],
-          finalOutput:
-            'Baseline report generated without secondary verification',
-        },
-        failureDiagnosis: {
-          id: `diag-${agent.id}`,
-          runId: `eval-v0-${agent.id}`,
-          agentVersion: 0,
-          summary:
-            'Missing dedicated verification pass prior to final report generation.',
-          rootCauses: [
-            {
-              id: 'rc-1',
-              title:
-                'Single-source vulnerability without secondary verification',
-              description:
-                'Initial baseline lacked independent cross-verification, allowing unverified assertions.',
-              severity: 'critical',
-              affectedMetric: 'Accuracy',
-              evidenceSnippet: 'Direct pass from ingest to synthesizer',
-            },
-          ],
-          recommendations: ['Inject dedicated verification stage'],
-          proposedMutations: ['+ Add Verifier node'],
-        },
-        mutationDiff: {
-          id: `diff-${agent.id}`,
-          fromVersion: 0,
-          toVersion: agent.version || 1,
-          summary:
-            'Injected dedicated verifier stage and hardened prompt instructions.',
-          actions: [],
-          topologyDiffs: [
-            {
-              action: 'added_node',
-              description: `Added ${agent.nodes[agent.nodes.length - 1]?.name || 'Verifier'} stage`,
-            },
-          ],
-          promptDiffs: [],
-        },
-        targetReached: false,
-        timestamp: agent.createdAt,
-      },
-      {
-        iterationIndex: 1,
-        versionTag: 'v1',
         agentSpec: agent,
         evaluationRun: {
-          id: `eval-v1-${agent.id}`,
+          id: `eval-${agent.id}`,
           caseId: `case-${agent.id}`,
-          agentVersion: agent.version,
           timestamp: agent.createdAt,
           overallScore: 93,
           metrics: generateMetricsForAgent(agent, true),
           passed: true,
           nodeTraces: [],
           finalOutput:
-            'Cross-verified report with citation links and strict schema',
+            'Engineered pipeline specification with verified stages and tool schemas.',
         },
         failureDiagnosis: {
           id: `diag-clean-${agent.id}`,
-          runId: `eval-v1-${agent.id}`,
-          agentVersion: agent.version,
+          runId: `eval-${agent.id}`,
           summary: 'All quantitative criteria satisfied.',
           rootCauses: [],
           recommendations: [],
@@ -294,9 +225,7 @@ function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
         },
         mutationDiff: {
           id: `diff-final-${agent.id}`,
-          fromVersion: 0,
-          toVersion: agent.version || 1,
-          summary: 'Final certified architecture.',
+          summary: 'Certified autonomous architecture.',
           actions: [],
           topologyDiffs: [],
           promptDiffs: [],
@@ -443,11 +372,10 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
       } else if (session) {
         const newStep = {
           iterationIndex: session.iterations.length,
-          versionTag: updatedAgent.versionTag,
           agentSpec: updatedAgent,
           evaluationRun: res.evalRun,
           mutationDiff: res.mutationDiff,
-          targetReached: updatedAgent.version > 0,
+          targetReached: Boolean(updatedAgent.nodes && updatedAgent.nodes.length > 0),
           timestamp: new Date().toISOString(),
         }
         setSession({

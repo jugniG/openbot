@@ -37,7 +37,7 @@ export type NodeTrace = z.infer<typeof NodeTraceSchema>;
 
 export const EvaluationRunSchema = z.object({
   id: z.string(),
-  agentVersion: numberOrString(),
+  agentVersion: numberOrString().optional(),
   caseId: z.string(),
   timestamp: z.string(),
   metrics: z.array(MetricScoreSchema),

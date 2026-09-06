@@ -15,7 +15,7 @@ export type RootCause = z.infer<typeof RootCauseSchema>;
 export const FailureDiagnosisSchema = z.object({
   id: z.string(),
   runId: z.string(),
-  agentVersion: z.number(),
+  agentVersion: z.number().optional(),
   summary: z.string(),
   rootCauses: z.array(RootCauseSchema),
   recommendations: z.array(z.string()),

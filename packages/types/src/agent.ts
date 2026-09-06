@@ -93,8 +93,8 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 export const AgentSpecSchema = z.object({
   id: z.string(),
-  version: z.number(), // 0, 1, 2...
-  versionTag: z.string(), // "v0", "v1"
+  version: z.number().optional(),
+  versionTag: z.string().optional(),
   name: z.string(),
   domain: z.enum(["research", "coding", "finance", "general"]),
   goal: z.string(),

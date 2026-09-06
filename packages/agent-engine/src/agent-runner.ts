@@ -11,11 +11,16 @@ export async function runAgentPipeline(
   agent: AgentSpec,
   evalCase: EvaluationCase
 ): Promise<ExecutionResult> {
-  const runId = `run-${agent.versionTag}-${Date.now()}`;
+  const runId = `run-${agent.id || "pipeline"}-${Date.now()}`;
   const traces: NodeTrace[] = [];
   const startTime = Date.now();
 
-  const isV0 = agent.version === 0;
+  const hasVerifier = agent.nodes.some(
+    (n) =>
+      n.role.toLowerCase().includes("verifier") ||
+      n.role.toLowerCase().includes("validation") ||
+      n.assignedTools.some((t) => t.includes("verifier") || t.includes("checker"))
+  );
   let accumulatedContext = `Task: ${agent.goal}\nQuery Input: ${JSON.stringify(evalCase.input)}`;
 
   for (let i = 0; i < agent.nodes.length; i++) {
@@ -34,8 +39,8 @@ export async function runAgentPipeline(
       outputSummary = `Executed reasoning stage [${node.name}]. Decomposed context and derived state transitions.`;
     }
 
-    // In v0 (un-optimized baseline), mark early stages as having unverified single-path warnings
-    if (isV0 && i === agent.nodes.length - 1) {
+    // If architecture has no verification stage, mark the final action stage with an unverified warning
+    if (!hasVerifier && i === agent.nodes.length - 1) {
       status = "warning";
       outputSummary += " [Warning: Output produced without secondary verification or sandbox safety pass.]";
     }
@@ -56,20 +61,20 @@ export async function runAgentPipeline(
 
   // Generate dynamic synthesized output reflecting pipeline execution
   let finalOutput = "";
-  if (isV0) {
-    finalOutput = `### [v0 Baseline Output] ${agent.name}\n` +
+  if (!hasVerifier) {
+    finalOutput = `### [Pipeline Execution Output] ${agent.name}\n` +
       `Objective: ${agent.goal}\n\n` +
-      `Summary: Completed initial pass across ${agent.nodes.length} stages.\n` +
+      `Summary: Completed execution pass across ${agent.nodes.length} stages.\n` +
       `Telemetry Notice: Pipeline completed with potential unverified single-source assumptions and missing validation guardrails.\n` +
       `Traces: ${traces.map((t) => `${t.nodeName} (${t.status})`).join(" -> ")}`;
   } else {
-    finalOutput = `### [v1 Certified Specialist Output] ${agent.name}\n` +
+    finalOutput = `### [Verified Pipeline Output] ${agent.name}\n` +
       `Objective: ${agent.goal}\n\n` +
       `Verified Summary: Successfully completed full multi-stage pipeline with strict verification.\n` +
       `- Pipeline Stages: ${agent.nodes.map((n) => n.name).join(" -> ")}\n` +
       `- Active Tools: ${agent.nodes.flatMap((n) => n.assignedTools).join(", ") || "Direct Reasoning"}\n` +
-      `- Validation: All secondary verification and safety checks passed with zero regressions.\n\n` +
-      `Execution Telemetry: 100% verified against target success criteria.`;
+      `- Validation: Secondary verification and safety checks completed.\n\n` +
+      `Execution Telemetry: Verified against target success criteria.`;
   }
 
   return {

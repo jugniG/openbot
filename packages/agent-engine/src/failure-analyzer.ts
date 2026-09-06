@@ -28,7 +28,7 @@ Return JSON matching FailureDiagnosis:
   "proposedMutations": ["string (e.g. '+ Add Verifier stage', '+ Allocate verification tool')"]
 }`;
 
-  const userPrompt = `Diagnose failures for Agent: "${agent.name}" (${agent.versionTag})
+  const userPrompt = `Diagnose failures for Agent: "${agent.name}"
 Goal: "${agent.goal}"
 Current Architecture: ${agent.architectureSummary}
 Evaluation Overall Score: ${evalRun.overallScore}% (Passed: ${evalRun.passed})
@@ -41,6 +41,5 @@ Traces: ${JSON.stringify(evalRun.nodeTraces.map((t) => ({ node: t.nodeName, stat
     ...diagnosis,
     id: diagnosis.id || `diag-${evalRun.id}`,
     runId: evalRun.id,
-    agentVersion: agent.version,
   };
 }

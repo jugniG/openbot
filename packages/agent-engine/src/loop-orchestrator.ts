@@ -81,7 +81,7 @@ export class LoopOrchestrator {
     this.emit(
       sessionId,
       "ARCHITECTURE_GENERATED",
-      `Synthesized initial ${currentAgent.versionTag} topology: [${currentAgent.architectureSummary}]`,
+      `Synthesized initial topology: [${currentAgent.architectureSummary}]`,
       0,
       { agentSpec: currentAgent }
     );
@@ -90,7 +90,6 @@ export class LoopOrchestrator {
     session.status = "completed";
     const step: IterationStep = {
       iterationIndex: 0,
-      versionTag: currentAgent.versionTag,
       agentSpec: currentAgent,
       targetReached: true,
       timestamp: new Date().toISOString(),
@@ -100,7 +99,7 @@ export class LoopOrchestrator {
     this.emit(
       sessionId,
       "TARGET_REACHED",
-      `Synthesized ${currentAgent.versionTag}: [${currentAgent.architectureSummary}]. Ready to configure credentials and test.`,
+      `Synthesized [${currentAgent.architectureSummary}]. Ready to configure credentials and test.`,
       0,
       { finalAgent: currentAgent }
     );

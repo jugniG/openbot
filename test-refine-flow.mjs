@@ -1,4 +1,4 @@
-﻿import dotenv from "dotenv";
+import dotenv from "dotenv";
 dotenv.config({ path: "./apps/web/.env" });
 
 import { LoopOrchestrator } from "./packages/agent-engine/dist/loop-orchestrator.js";
@@ -22,7 +22,7 @@ async function testChatAndRefineFlow() {
   const session = await orchestrator.runEngineeringLoop(initialPrompt, "test-sess-" + Date.now(), initialMessages);
 
   const v1Agent = session.currentAgent;
-  console.log("✓ Agent Created: " + v1Agent.name + " (" + v1Agent.versionTag + ")");
+  console.log("✓ Agent Created: " + v1Agent.name);
   console.log("✓ Topology: " + v1Agent.architectureSummary);
   console.log("✓ Chat Messages Attached: " + (v1Agent.messages?.length || 0));
 
@@ -41,7 +41,7 @@ async function testChatAndRefineFlow() {
     updatedMessages
   );
 
-  console.log("\n✓ Agent Mutated: " + improvedAgent.name + " (" + improvedAgent.versionTag + ")");
+  console.log("\n✓ Agent Mutated: " + improvedAgent.name);
   console.log("✓ New Topology: " + improvedAgent.architectureSummary);
   console.log("✓ Mutation Summary: " + mutationDiff.summary);
   console.log("✓ Total Stages: " + improvedAgent.nodes.length + " (Previous: " + v1Agent.nodes.length + ")");

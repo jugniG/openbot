@@ -3,12 +3,12 @@ import { availableTools } from "./tool-registry.js";
 import type { GoalAnalysisResult } from "./goal-analyzer.js";
 import { callGeminiJSON } from "./llm-provider.js";
 
-export async function generateInitialV0Architecture(
+export async function synthesizeAgentArchitecture(
   analysis: GoalAnalysisResult,
   userGoal: string
 ): Promise<AgentSpec> {
   const systemPrompt = `You are the Agent Architect & Tool Selector inside OpenBot (Automated Agent Engineering Factory).
-Given a GoalAnalysisResult and the user's goal, design an initial v0 executable AgentSpec DAG.
+Given a GoalAnalysisResult and the user's goal, design an executable AgentSpec DAG.
 
 Available Tools in the Registry:
 ${JSON.stringify(availableTools.map((t) => ({ id: t.id, name: t.name, description: t.description })))}
@@ -40,12 +40,12 @@ Requirements:
 3. Create edges connecting the sequential flow.
 4. Output JSON matching the AgentSpec schema.`;
 
-  const userPrompt = `Synthesize v0 architecture for:
-Agent Name: "${analysis.agentName}"
-Domain: "${analysis.domain}"
-Goal: "${userGoal}"
-Requirements: ${JSON.stringify(analysis.extractedRequirements)}
-Success Criteria: ${JSON.stringify(analysis.successCriteria)}`;
+  const userPrompt = `Synthesize architecture for:
+  Agent Name: "${analysis.agentName}"
+  Domain: "${analysis.domain}"
+  Goal: "${userGoal}"
+  Requirements: ${JSON.stringify(analysis.extractedRequirements)}
+  Success Criteria: ${JSON.stringify(analysis.successCriteria)}`;
 
   const spec = await callGeminiJSON<any>(systemPrompt, userPrompt);
   const rawNodes = Array.isArray(spec.nodes) ? spec.nodes : Array.isArray(spec.stages) ? spec.stages : [];
@@ -88,3 +88,5 @@ Success Criteria: ${JSON.stringify(analysis.successCriteria)}`;
     createdAt: new Date().toISOString(),
   };
 }
+
+export const generateInitialV0Architecture = synthesizeAgentArchitecture;

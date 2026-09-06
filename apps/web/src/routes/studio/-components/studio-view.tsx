@@ -6,7 +6,6 @@ import type { AgentSpec, EngineeringSession, MetricScore } from '@repo/types'
 
 import { AgentSidebar } from './agent-sidebar'
 import { CreateHero } from './create-hero'
-import { AgentChatView } from './agent-chat-view'
 import { EvolutionView } from './evolution-view'
 import {
   ContextualInspector,
@@ -38,54 +37,6 @@ function generateMetricsForAgent(_agent: AgentSpec, isOptimized: boolean): Metri
 }
 
 function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
-  const isDraft = !agent.nodes || agent.nodes.length === 0
-
-  if (isDraft) {
-    return {
-      id: `sess-${agent.id}`,
-      goal: agent.goal,
-      domain: agent.domain,
-      status: 'analyzing',
-      targetOverallScore: 88,
-      iterations: [
-        {
-          iterationIndex: 0,
-          agentSpec: agent,
-          evaluationRun: {
-            id: `eval-${agent.id}`,
-            caseId: `case-${agent.id}`,
-            timestamp: agent.createdAt,
-            overallScore: 0,
-            metrics: [],
-            passed: false,
-            nodeTraces: [],
-            finalOutput: 'Requirements interview in progress',
-          },
-          failureDiagnosis: {
-            id: `diag-${agent.id}`,
-            runId: `eval-${agent.id}`,
-            summary: 'Requirements clarification in progress.',
-            rootCauses: [],
-            recommendations: [],
-            proposedMutations: [],
-          },
-          mutationDiff: {
-            id: `diff-${agent.id}`,
-            summary: 'Initial draft session',
-            actions: [],
-            topologyDiffs: [],
-            promptDiffs: [],
-          },
-          targetReached: false,
-          timestamp: agent.createdAt,
-        },
-      ],
-      currentAgent: agent,
-      createdAt: agent.createdAt,
-      updatedAt: agent.createdAt,
-    }
-  }
-
   return {
     id: `sess-${agent.id}`,
     goal: agent.goal,
@@ -355,17 +306,8 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
           </div>
         )}
 
-        {/* STATE B: CHAT ONLY (before pipeline has been created) */}
-        {!isRunning && selectedAgent && (!selectedAgent.nodes || selectedAgent.nodes.length === 0) && (
-          <AgentChatView
-            agent={selectedAgent}
-            onSendMessage={handleRefineAgent}
-            isSending={isRefining}
-          />
-        )}
-
-        {/* STATE C: PIPELINE BOARD & WORKSPACE (after pipeline is created) */}
-        {!isRunning && session && selectedAgent && selectedAgent.nodes && selectedAgent.nodes.length > 0 && (
+        {/* Unified Studio Workspace (Chat on Left, Pipeline Canvas on Right) */}
+        {!isRunning && session && selectedAgent && (
           <EvolutionView
             session={session}
             onOpenTestModal={() => setIsTestModalOpen(true)}

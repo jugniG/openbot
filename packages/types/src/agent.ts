@@ -96,7 +96,7 @@ export const AgentSpecSchema = z.object({
   version: z.number().optional(),
   versionTag: z.string().optional(),
   name: z.string(),
-  domain: z.enum(["research", "coding", "finance", "general"]),
+  domain: z.string().default("general"),
   goal: z.string(),
   architectureSummary: z.string(),
   nodes: z.array(PipelineNodeSchema),

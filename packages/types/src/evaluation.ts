@@ -6,7 +6,7 @@ export const EvaluationCaseSchema = z.object({
   description: z.string(),
   input: z.record(z.any()),
   expectedOutcomes: z.array(z.string()),
-  domain: z.enum(["research", "coding", "finance", "general"]),
+  domain: z.string().default("general"),
 });
 
 export type EvaluationCase = z.infer<typeof EvaluationCaseSchema>;

@@ -4,7 +4,7 @@ import { callGeminiJSON } from "./llm-provider.js";
 export type { ChatMessage };
 
 export interface GoalAnalysisResult {
-  domain: "research" | "coding" | "finance" | "general";
+  domain: string;
   agentName: string;
   extractedRequirements: string[];
   successCriteria: string[];
@@ -14,14 +14,14 @@ export interface GoalAnalysisResult {
 
 export type GoalClarificationResponse =
   | {
-      status: "needs_clarification";
-      question: string;
-      missingPillars?: string[];
-    }
+    status: "needs_clarification";
+    question: string;
+    missingPillars?: string[];
+  }
   | {
-      status: "ready";
-      analysis: GoalAnalysisResult;
-    };
+    status: "ready";
+    analysis: GoalAnalysisResult;
+  };
 
 /**
  * Multi-turn Conversational Agent Architect
@@ -59,7 +59,7 @@ If you have enough information to build the agent:
 {
   "status": "ready",
   "analysis": {
-    "domain": "research" | "coding" | "finance" | "general",
+    "domain": "string (e.g. 'finance', 'crypto', 'devops', 'marketing', 'research', 'general')",
     "agentName": "Clean, descriptive agent title",
     "extractedRequirements": ["3 to 5 clear technical requirements"],
     "successCriteria": ["3 to 4 quantitative criteria"],

@@ -5,10 +5,32 @@ import type {
   AgentSpec,
   ChatMessage,
 } from "@repo/types";
-import { analyzeGoal } from "./goal-analyzer.js";
-import { generateInitialV0Architecture } from "./arch-generator.js";
+import { analyzeGoal, type GoalAnalysisResult } from "./goal-analyzer.js";
+import { synthesizeAgentArchitecture } from "./arch-generator.js";
 
 export type EventCallback = (event: SessionEvent) => void;
+
+/**
+ * Direct One-Shot Agent Synthesizer
+ * Reuses existing analysis if provided to eliminate duplicate LLM roundtrips!
+ */
+export async function synthesizeAgent(
+  goalPrompt: string,
+  existingAnalysis?: GoalAnalysisResult,
+  initialMessages?: ChatMessage[],
+  agentId?: string
+): Promise<AgentSpec> {
+  const analysis = existingAnalysis || (await analyzeGoal(goalPrompt));
+  const agent = await synthesizeAgentArchitecture(analysis, goalPrompt);
+  if (agentId) {
+    agent.id = agentId;
+  }
+  agent.messages =
+    initialMessages && initialMessages.length > 0
+      ? initialMessages
+      : [{ role: "user", content: goalPrompt, timestamp: new Date().toISOString() }];
+  return agent;
+}
 
 export class LoopOrchestrator {
   private onEvent?: EventCallback;
@@ -40,7 +62,8 @@ export class LoopOrchestrator {
   public async runEngineeringLoop(
     goalPrompt: string,
     sessionId: string = `sess-${Date.now()}`,
-    initialMessages?: ChatMessage[]
+    initialMessages?: ChatMessage[],
+    existingAnalysis?: GoalAnalysisResult
   ): Promise<EngineeringSession> {
     const now = new Date().toISOString();
     const finalMessages: ChatMessage[] =
@@ -51,18 +74,18 @@ export class LoopOrchestrator {
     const session: EngineeringSession = {
       id: sessionId,
       goal: goalPrompt,
-      domain: "research",
+      domain: existingAnalysis?.domain || "general",
       status: "analyzing",
       iterations: [],
-      targetOverallScore: 88,
+      targetOverallScore: existingAnalysis?.targetScore || 88,
       createdAt: now,
       updatedAt: now,
     };
 
     this.emit(sessionId, "SESSION_STARTED", `Initiated engineering session for: "${goalPrompt}"`, 0);
 
-    // 1. Goal Analysis (Dynamic / LLM)
-    const analysis = await analyzeGoal(goalPrompt);
+    // 1. Goal Analysis (Dynamic / LLM) - Skips Gemini call if analysis already provided!
+    const analysis = existingAnalysis || (await analyzeGoal(goalPrompt));
     session.domain = analysis.domain;
     session.targetOverallScore = analysis.targetScore;
 
@@ -72,9 +95,9 @@ export class LoopOrchestrator {
       successCriteria: analysis.successCriteria,
     });
 
-    // 2. Synthesize Initial v0 Architecture (Dynamic / LLM)
+    // 2. Synthesize Architecture
     session.status = "generating";
-    let currentAgent: AgentSpec = await generateInitialV0Architecture(analysis, goalPrompt);
+    const currentAgent: AgentSpec = await synthesizeAgentArchitecture(analysis, goalPrompt);
     currentAgent.messages = finalMessages;
     session.currentAgent = currentAgent;
 

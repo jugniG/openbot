@@ -30,7 +30,7 @@ export type SessionEvent = z.infer<typeof SessionEventSchema>;
 export const EngineeringSessionSchema = z.object({
   id: z.string(),
   goal: z.string(),
-  domain: z.enum(["research", "coding", "finance", "general"]),
+  domain: z.string().default("general"),
   status: z.enum(["idle", "analyzing", "generating", "evaluating", "diagnosing", "optimizing", "completed", "failed"]),
   iterations: z.array(IterationStepSchema),
   currentAgent: AgentSpecSchema.optional(),

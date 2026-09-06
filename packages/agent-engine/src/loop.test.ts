@@ -34,7 +34,7 @@ test("autonomous engineering loop: unseen arbitrary goal (Support Triage)", asyn
     "Build an agent that monitors customer support tickets, classifies sentiment, and drafts empathetic responses."
   );
 
-  assert.strictEqual(session.domain, "general");
+  assert.ok(typeof session.domain === "string" && session.domain.length > 0);
   assert.ok(session.currentAgent);
   assert.ok(session.currentAgent.name.length > 0);
   assert.strictEqual(session.iterations.length, 1);

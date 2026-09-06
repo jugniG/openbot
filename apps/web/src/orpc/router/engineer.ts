@@ -2,6 +2,7 @@ import { os } from "@orpc/server";
 import * as z from "zod";
 import {
   LoopOrchestrator,
+  synthesizeAgent,
   analyzeGoalWithConversation,
   refineAgentWithFollowUp,
   executeInSolariSandbox,
@@ -57,7 +58,7 @@ export const initiateAgentChat = os
         name: input.prompt.length > 40 ? `${input.prompt.slice(0, 40)}...` : input.prompt,
         domain: "general",
         goal: input.prompt.trim(),
-        architectureSummary: "Interactive Requirements Interview",
+        architectureSummary: "Awaiting synthesis",
         nodes: [],
         edges: [],
         availableTools: [],
@@ -65,26 +66,14 @@ export const initiateAgentChat = os
         createdAt: new Date().toISOString(),
       };
     } else {
-      // Requirements are already satisfied! Synthesize immediately
+      // Requirements are already satisfied! Synthesize immediately without duplicate LLM calls
       try {
-        const orchestrator = new LoopOrchestrator();
-        session = await orchestrator.runEngineeringLoop(
+        agentSpec = await synthesizeAgent(
           analysisRes.analysis.refinedPrompt || input.prompt,
-          `sess-${agentId}`,
-          [userMsg]
+          analysisRes.analysis,
+          [userMsg],
+          agentId
         );
-        agentSpec = session.currentAgent || {
-          id: agentId,
-          name: analysisRes.analysis.agentName,
-          domain: analysisRes.analysis.domain,
-          goal: input.prompt.trim(),
-          architectureSummary: "Synthesized Autonomous Pipeline",
-          nodes: [],
-          edges: [],
-          availableTools: [],
-          messages: [userMsg],
-          createdAt: new Date().toISOString(),
-        };
         const assistantReply: ChatMessage = {
           role: "assistant",
           content: `Engineered **${agentSpec.name}** with ${agentSpec.nodes.length} stages [${agentSpec.architectureSummary}]. Ready to configure credentials and test.`,
@@ -105,7 +94,7 @@ export const initiateAgentChat = os
           name: analysisRes.analysis.agentName || (input.prompt.length > 40 ? `${input.prompt.slice(0, 40)}...` : input.prompt),
           domain: analysisRes.analysis.domain || "general",
           goal: input.prompt.trim(),
-          architectureSummary: "Interactive Requirements Interview",
+          architectureSummary: "Awaiting synthesis",
           nodes: [],
           edges: [],
           availableTools: [],
@@ -553,28 +542,13 @@ export const refineSpecialist = os
       } else {
         // Status is 'ready'! Requirements established; synthesize autonomous pipeline
         try {
-          const orchestrator = new LoopOrchestrator();
           const refinedPrompt = analysisRes.analysis?.refinedPrompt || currentAgent.goal;
-          const session = await orchestrator.runEngineeringLoop(
+          const engineeredAgent = await synthesizeAgent(
             refinedPrompt,
-            `sess-${currentAgent.id}`,
-            updatedMessages
+            analysisRes.analysis,
+            updatedMessages,
+            currentAgent.id
           );
-
-          let engineeredAgent = session.currentAgent;
-          if (!engineeredAgent) {
-            engineeredAgent = {
-              ...currentAgent,
-              name: analysisRes.analysis?.agentName || currentAgent.name,
-              domain: analysisRes.analysis?.domain || currentAgent.domain,
-              architectureSummary: "Synthesized Autonomous Pipeline",
-              nodes: [],
-              edges: [],
-              availableTools: [],
-              messages: updatedMessages,
-            };
-          }
-          engineeredAgent.id = currentAgent.id;
 
           const assistantReply: ChatMessage = {
             role: "assistant",
@@ -599,7 +573,6 @@ export const refineSpecialist = os
             console.warn("Prisma agent synthesis update error:", dbErr);
           }
 
-          const finalStep = session.iterations[session.iterations.length - 1];
           return {
             agent: engineeredAgent,
             mutationDiff: {
@@ -608,9 +581,9 @@ export const refineSpecialist = os
               removedNodes: [],
               modifiedNodes: [],
             },
-            evalRun: finalStep?.evaluationRun || null,
+            evalRun: null,
             assistantReply,
-            session,
+            session: null,
           };
         } catch (synthErr: any) {
           console.warn("Synthesis loop fallback:", synthErr);

@@ -167,43 +167,43 @@ export const startEngineeringSession = os
     // Persist finalized agent to PostgreSQL
     if (session.currentAgent) {
       const finalStep = session.iterations[session.iterations.length - 1];
-    if (finalStep?.targetReached && (prisma as any)?.agent?.upsert) {
-      try {
-        await (prisma as any).agent.upsert({
-          where: { id: finalStep.agentSpec.id },
-          create: {
-            id: finalStep.agentSpec.id,
-            name: finalStep.agentSpec.name,
-            domain: finalStep.agentSpec.domain,
-            goal: finalStep.agentSpec.goal,
-            currentVersion: 1,
-            architectureSummary: finalStep.agentSpec.architectureSummary || "Multi-stage pipeline",
-            spec: finalStep.agentSpec as any,
-          },
-          update: {
-            currentVersion: 1,
-            architectureSummary: finalStep.agentSpec.architectureSummary || "Multi-stage pipeline",
-            spec: finalStep.agentSpec as any,
-          },
-        });
-
-        if ((prisma as any)?.agentSession?.create) {
-          await (prisma as any).agentSession.create({
-            data: {
-              id: session.id,
-              agentId: finalStep.agentSpec.id,
-              goal: session.goal,
-              domain: session.domain,
-              iterations: session.iterations as any,
-              targetScore: session.targetOverallScore || 85,
-              status: session.status,
+      if (finalStep?.targetReached && (prisma as any)?.agent?.upsert) {
+        try {
+          await (prisma as any).agent.upsert({
+            where: { id: finalStep.agentSpec.id },
+            create: {
+              id: finalStep.agentSpec.id,
+              name: finalStep.agentSpec.name,
+              domain: finalStep.agentSpec.domain,
+              goal: finalStep.agentSpec.goal,
+              currentVersion: 1,
+              architectureSummary: finalStep.agentSpec.architectureSummary || "Multi-stage pipeline",
+              spec: finalStep.agentSpec as any,
+            },
+            update: {
+              currentVersion: 1,
+              architectureSummary: finalStep.agentSpec.architectureSummary || "Multi-stage pipeline",
+              spec: finalStep.agentSpec as any,
             },
           });
+
+          if ((prisma as any)?.agentSession?.create) {
+            await (prisma as any).agentSession.create({
+              data: {
+                id: session.id,
+                agentId: finalStep.agentSpec.id,
+                goal: session.goal,
+                domain: session.domain,
+                iterations: session.iterations as any,
+                targetScore: session.targetOverallScore || 85,
+                status: session.status,
+              },
+            });
+          }
+        } catch (dbErr) {
+          console.warn("Prisma session persistence fallback:", dbErr);
         }
-      } catch (dbErr) {
-        console.warn("Prisma session persistence fallback:", dbErr);
       }
-    }
     }
 
     return {
@@ -429,13 +429,13 @@ export const refineSpecialist = os
       currentAgent.messages && currentAgent.messages.length > 0
         ? currentAgent.messages
         : input.messages && input.messages.length > 0
-        ? input.messages.map((m) => ({
+          ? input.messages.map((m) => ({
             role: m.role,
             content: m.content,
             timestamp: m.timestamp || new Date().toISOString(),
             quickSuggestions: m.quickSuggestions,
           }))
-        : [
+          : [
             {
               role: "user",
               content: currentAgent.goal,
@@ -654,7 +654,7 @@ export const refineSpecialist = os
       console.warn("refineAgentWithFollowUp error fallback:", refineErr);
       const assistantReply: ChatMessage = {
         role: "assistant",
-        content: `I received your modification request, but encountered an issue updating the architecture: ${refineErr.message || "Refinement failed"}. Please try again.`,
+        content: `I received your request, but encountered an issue updating the architecture: ${refineErr.message || "Refinement failed"}. Please try again.`,
         timestamp: new Date().toISOString(),
       };
       const fallbackAgent: AgentSpec = {

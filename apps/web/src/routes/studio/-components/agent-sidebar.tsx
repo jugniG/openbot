@@ -128,6 +128,7 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {filtered.map((agent) => {
           const isSelected = agent.id === selectedAgentId
+          const hasPipeline = agent.nodes && agent.nodes.length > 0
 
           return (
             <div
@@ -142,19 +143,21 @@ export const AgentSidebar: React.FC<AgentSidebarProps> = ({
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
                   {getDomainIcon(agent.domain)}
-                  <span className="text-xs font-semibold text-foreground truncate max-w-[130px]">
+                  <span className="text-xs font-semibold text-foreground truncate max-w-[150px]">
                     {agent.name}
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Ready
-                </span>
+                {hasPipeline && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Ready
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground font-mono text-[10px] flex items-center gap-1">
-                  {agent.nodes?.length || 4} stages
+                  {hasPipeline ? `${agent.nodes.length} stages` : 'Chat'}
                 </span>
                 <span className="text-muted-foreground capitalize text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/40">
                   {agent.domain}

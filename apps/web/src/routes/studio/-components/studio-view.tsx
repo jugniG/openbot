@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { RiLoader4Line } from 'react-icons/ri'
 import { client } from '#/orpc/client'
-import type { AgentSpec, EngineeringSession, ChatMessage, MetricScore } from '@repo/types'
+import type { AgentSpec, EngineeringSession, MetricScore } from '@repo/types'
 
 import { AgentSidebar } from './agent-sidebar'
 import { CreateHero } from './create-hero'
+import { AgentChatView } from './agent-chat-view'
 import { EngineeringView } from './engineering-view'
 import { EvolutionView } from './evolution-view'
 import {
@@ -146,6 +147,59 @@ function generateMetricsForAgent(agent: AgentSpec, isOptimized: boolean): Metric
 }
 
 function buildSessionForAgent(agent: AgentSpec): EngineeringSession {
+  const isDraft = !agent.nodes || agent.nodes.length === 0 || agent.version === 0
+
+  if (isDraft) {
+    return {
+      id: `sess-${agent.id}`,
+      goal: agent.goal,
+      domain: agent.domain,
+      status: 'analyzing',
+      targetOverallScore: 88,
+      iterations: [
+        {
+          iterationIndex: 0,
+          versionTag: 'v0',
+          agentSpec: agent,
+          evaluationRun: {
+            id: `eval-v0-${agent.id}`,
+            caseId: `case-${agent.id}`,
+            agentVersion: 0,
+            timestamp: agent.createdAt,
+            overallScore: 0,
+            metrics: [],
+            passed: false,
+            nodeTraces: [],
+            finalOutput: 'Requirements interview in progress',
+          },
+          failureDiagnosis: {
+            id: `diag-${agent.id}`,
+            runId: `eval-v0-${agent.id}`,
+            agentVersion: 0,
+            summary: 'Requirements clarification in progress.',
+            rootCauses: [],
+            recommendations: [],
+            proposedMutations: [],
+          },
+          mutationDiff: {
+            id: `diff-${agent.id}`,
+            fromVersion: 0,
+            toVersion: 0,
+            summary: 'Initial draft session',
+            actions: [],
+            topologyDiffs: [],
+            promptDiffs: [],
+          },
+          targetReached: false,
+          timestamp: agent.createdAt,
+        },
+      ],
+      currentAgent: agent,
+      createdAt: agent.createdAt,
+      updatedAt: agent.createdAt,
+    }
+  }
+
   return {
     id: `sess-${agent.id}`,
     goal: agent.goal,
@@ -358,67 +412,27 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
 
   const [isRefining, setIsRefining] = useState(false)
 
-  const handleRunGoal = async (goal: string, messages?: ChatMessage[]) => {
-    setActiveGoal(goal)
-    setIsRunning(true)
-    setCurrentStage('Understanding requirements...')
-    setStatusChecks({
-      goalUnderstood: true,
-      archGenerated: false,
-      agentExecuted: false,
-      failuresDiagnosed: false,
-      agentImproved: false,
-    })
+  const [isCreatingChat, setIsCreatingChat] = useState(false)
 
+  const handleCreateChat = async (prompt: string) => {
+    setIsCreatingChat(true)
     try {
-      const result = await (client.engineer as any).startEngineeringSession({
-        goal,
-        messages,
+      const res = await (client.engineer as any).initiateAgentChat({ prompt })
+      const createdAgent = res.agent as AgentSpec
+      setSpecialists((prev) => [createdAgent, ...prev.filter((a) => a.id !== createdAgent.id)])
+      selectAgentInternal(createdAgent)
+      if (res.session) {
+        setSession(res.session)
+      } else {
+        setSession(buildSessionForAgent(createdAgent))
+      }
+      router.navigate({
+        href: `/studio/${createdAgent.id}`,
       })
-      const completedSession = result.session as EngineeringSession
-
-      setTimeout(() => {
-        setCurrentStage('Building initial agent pipeline...')
-        setStatusChecks((prev) => ({ ...prev, archGenerated: true }))
-        if (completedSession.iterations[0]) {
-          setSelectedAgent(completedSession.iterations[0].agentSpec)
-        }
-      }, 700)
-
-      setTimeout(() => {
-        setCurrentStage('Testing agent against benchmark cases...')
-        setStatusChecks((prev) => ({ ...prev, agentExecuted: true }))
-      }, 1500)
-
-      setTimeout(() => {
-        setCurrentStage('Diagnosing failure points & weaknesses...')
-        setStatusChecks((prev) => ({ ...prev, failuresDiagnosed: true }))
-      }, 2300)
-
-      setTimeout(() => {
-        setCurrentStage('Adding verification safeguards & hardening rules...')
-        setStatusChecks((prev) => ({ ...prev, agentImproved: true }))
-        setSession(completedSession)
-        if (completedSession.currentAgent) {
-          setSelectedAgent(completedSession.currentAgent)
-        }
-      }, 3100)
-
-      setTimeout(async () => {
-        setCurrentStage('Agent verified & ready!')
-        setIsRunning(false)
-        const updated = (await client.engineer.listSpecialists({})) as AgentSpec[]
-        setSpecialists(updated)
-        if (completedSession.currentAgent) {
-          router.navigate({
-            href: `/studio/${completedSession.currentAgent.id}`,
-          })
-        }
-      }, 3900)
     } catch (err) {
-      console.error('Engineering session error:', err)
-      setIsRunning(false)
-      setCurrentStage('Failed')
+      console.error('Failed to initiate agent chat:', err)
+    } finally {
+      setIsCreatingChat(false)
     }
   }
 
@@ -435,14 +449,16 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
       const updatedAgent = res.agent as AgentSpec
       setSelectedAgent(updatedAgent)
 
-      if (session) {
+      if (res.session) {
+        setSession(res.session)
+      } else if (session) {
         const newStep = {
           iterationIndex: session.iterations.length,
           versionTag: updatedAgent.versionTag,
           agentSpec: updatedAgent,
           evaluationRun: res.evalRun,
           mutationDiff: res.mutationDiff,
-          targetReached: true,
+          targetReached: updatedAgent.version > 0,
           timestamp: new Date().toISOString(),
         }
         setSession({
@@ -450,6 +466,8 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
           currentAgent: updatedAgent,
           iterations: [...session.iterations, newStep],
         })
+      } else {
+        setSession(buildSessionForAgent(updatedAgent))
       }
 
       const updatedList = (await client.engineer.listSpecialists({})) as AgentSpec[]
@@ -519,31 +537,34 @@ export function StudioView({ routeAgentId, initialAgent }: StudioViewProps) {
       {/* Center: Dynamic State Router */}
       <main className="flex-1 flex flex-col overflow-hidden relative bg-background">
         {/* STATE A: CREATE (Hero Composer) */}
-        {!isRunning && !session && !routeAgentId && (
-          <CreateHero onRunGoal={handleRunGoal} isRunning={isRunning} />
+        {!isRunning && !selectedAgent && !routeAgentId && (
+          <CreateHero
+            onCreateChat={handleCreateChat}
+            isCreating={isCreatingChat}
+          />
         )}
 
         {/* STATE A-2: Loading specialist agent workflow */}
-        {!isRunning && !session && routeAgentId && (
+        {!isRunning && !selectedAgent && routeAgentId && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-3">
             <RiLoader4Line className="w-6 h-6 animate-spin text-primary" />
             <p className="text-xs font-mono text-muted-foreground">
-              Loading specialist agent workflow...
+              Loading chat...
             </p>
           </div>
         )}
 
-        {/* STATE B: ENGINEERING (Active Timeline Progress) */}
-        {isRunning && (
-          <EngineeringView
-            currentStage={currentStage}
-            goal={activeGoal}
-            statusChecks={statusChecks}
+        {/* STATE B: CHAT ONLY (before pipeline has been created) */}
+        {!isRunning && selectedAgent && (!selectedAgent.nodes || selectedAgent.nodes.length === 0) && (
+          <AgentChatView
+            agent={selectedAgent}
+            onSendMessage={handleRefineAgent}
+            isSending={isRefining}
           />
         )}
 
-        {/* STATE C & D: EVOLUTION & FINAL READY STATE */}
-        {!isRunning && session && (
+        {/* STATE C: PIPELINE BOARD & WORKSPACE (after pipeline is created) */}
+        {!isRunning && session && selectedAgent && selectedAgent.nodes && selectedAgent.nodes.length > 0 && (
           <EvolutionView
             session={session}
             onOpenTestModal={() => setIsTestModalOpen(true)}

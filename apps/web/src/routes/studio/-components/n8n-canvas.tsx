@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import type { AgentSpec, PipelineNode } from '@repo/types'
 import {
   RiToolsLine,
@@ -101,7 +101,11 @@ export const N8nCanvas: React.FC<N8nCanvasProps> = ({
         </div>
 
         <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
-          <span>{agent.nodes.length} Connected Stages</span>
+          <span>
+            {agent.nodes.length === 0
+              ? 'Requirements Gathering'
+              : `${agent.nodes.length} Connected Stages`}
+          </span>
         </div>
       </div>
 
@@ -114,8 +118,31 @@ export const N8nCanvas: React.FC<N8nCanvasProps> = ({
           backgroundSize: '20px 20px',
         }}
       >
-        <div className="max-w-xl mx-auto py-2">
-          {agent.nodes.map((node: PipelineNode, idx: number) => {
+        {agent.nodes.length === 0 ? (
+          <div className="max-w-md mx-auto py-12 flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-xs">
+              <RiSparklingLine className="w-7 h-7 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">
+                Requirements Gathering in Progress
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                OpenBot is analyzing your goal and clarifying parameters in the conversation. Once the requirements are complete, autonomous pipeline stages, tools, and verification suites will synthesize here.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-card border border-border text-left w-full shadow-xs">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block mb-1">
+                Target Task
+              </span>
+              <p className="text-xs text-foreground font-medium line-clamp-2">
+                {agent.goal}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-xl mx-auto py-2">
+            {agent.nodes.map((node: PipelineNode, idx: number) => {
             const badge = getNodeTypeBadge(node)
             const isLast = idx === agent.nodes.length - 1
 
@@ -224,6 +251,7 @@ export const N8nCanvas: React.FC<N8nCanvasProps> = ({
             )
           })}
         </div>
+        )}
       </div>
 
       {/* Canvas Footer Note */}

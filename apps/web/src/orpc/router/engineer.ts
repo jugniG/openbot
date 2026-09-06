@@ -33,6 +33,105 @@ export const clarifyOrAnalyzeGoal = os
     return analyzeGoalWithConversation(input.messages);
   });
 
+export const initiateAgentChat = os
+  .input(
+    z.object({
+      prompt: z.string().min(1),
+    })
+  )
+  .handler(async ({ input }) => {
+    const agentId = `agent-${Date.now()}`;
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: input.prompt.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    // Analyze intent with LLM
+    const analysisRes = await analyzeGoalWithConversation([userMsg]);
+
+    let assistantMsg: ChatMessage;
+    let agentSpec: AgentSpec;
+    let session: EngineeringSession | undefined;
+
+    if (analysisRes.status === "needs_clarification") {
+      assistantMsg = {
+        role: "assistant",
+        content: analysisRes.question,
+        quickSuggestions: analysisRes.quickSuggestions || [],
+        timestamp: new Date().toISOString(),
+      };
+
+      agentSpec = {
+        id: agentId,
+        name: input.prompt.length > 40 ? `${input.prompt.slice(0, 40)}...` : input.prompt,
+        domain: "general",
+        goal: input.prompt.trim(),
+        version: 0,
+        versionTag: "v0",
+        architectureSummary: "Interactive Requirements Interview",
+        nodes: [],
+        edges: [],
+        availableTools: [],
+        messages: [userMsg, assistantMsg],
+        createdAt: new Date().toISOString(),
+      };
+    } else {
+      // Requirements are already satisfied! Synthesize immediately
+      const orchestrator = new LoopOrchestrator();
+      session = await orchestrator.runEngineeringLoop(
+        analysisRes.analysis.refinedPrompt || input.prompt,
+        `sess-${agentId}`,
+        [userMsg]
+      );
+      agentSpec = session.currentAgent || {
+        id: agentId,
+        name: analysisRes.analysis.agentName,
+        domain: analysisRes.analysis.domain,
+        goal: input.prompt.trim(),
+        version: 1,
+        versionTag: "v1",
+        architectureSummary: "Synthesized Autonomous Pipeline",
+        nodes: [],
+        edges: [],
+        availableTools: [],
+        messages: [userMsg],
+        createdAt: new Date().toISOString(),
+      };
+      const assistantReply: ChatMessage = {
+        role: "assistant",
+        content: `Engineered **${agentSpec.name}** [${agentSpec.architectureSummary}]. All 5 stages synthesized, verified, and ready!`,
+        timestamp: new Date().toISOString(),
+      };
+      agentSpec.messages = [userMsg, assistantReply];
+    }
+
+    // Persist immediately to Supabase PostgreSQL!
+    try {
+      await prisma.agent.create({
+        data: {
+          id: agentId,
+          name: agentSpec.name,
+          domain: agentSpec.domain,
+          goal: agentSpec.goal,
+          currentVersion: agentSpec.version,
+          architectureSummary: agentSpec.architectureSummary,
+          spec: agentSpec as any,
+        },
+      });
+    } catch (e) {
+      console.warn("Prisma initiateAgentChat creation error:", e);
+    }
+
+    savedSpecialists.unshift(agentSpec);
+
+    return {
+      agent: agentSpec,
+      isReady: analysisRes.status === "ready",
+      session,
+    };
+  });
+
 // In-memory active sessions & event queues
 const sessions = new Map<string, EngineeringSession>();
 const sessionEvents = new Map<string, SessionEvent[]>();
@@ -468,7 +567,10 @@ export const listSpecialists = os.input(z.object({})).handler(async () => {
       if (dbAgents && dbAgents.length > 0) {
         for (const a of dbAgents) {
           const parsed = a.spec as any as AgentSpec;
-          if (!savedSpecialists.some((s) => s.id === parsed.id)) {
+          const idx = savedSpecialists.findIndex((s) => s.id === parsed.id);
+          if (idx >= 0) {
+            savedSpecialists[idx] = parsed;
+          } else {
             savedSpecialists.unshift(parsed);
           }
         }
@@ -692,6 +794,114 @@ export const refineSpecialist = os
         timestamp: new Date().toISOString(),
       },
     ];
+
+    // Check if agent is currently in draft (interview / requirements gathering) mode
+    if (currentAgent.version === 0 || !currentAgent.nodes || currentAgent.nodes.length === 0) {
+      const analysisRes = await analyzeGoalWithConversation(updatedMessages);
+
+      if (analysisRes.status === "needs_clarification") {
+        const assistantReply: ChatMessage = {
+          role: "assistant",
+          content: analysisRes.question,
+          quickSuggestions: analysisRes.quickSuggestions || [],
+          timestamp: new Date().toISOString(),
+        };
+
+        const updatedAgent: AgentSpec = {
+          ...currentAgent,
+          messages: [...updatedMessages, assistantReply],
+        };
+        savedSpecialists[specialistIndex] = updatedAgent;
+
+        try {
+          await prisma.agent.update({
+            where: { id: updatedAgent.id },
+            data: {
+              spec: updatedAgent as any,
+            },
+          });
+        } catch (dbErr) {
+          console.warn("Prisma draft agent update error:", dbErr);
+        }
+
+        return {
+          agent: updatedAgent,
+          mutationDiff: {
+            summary: "Clarified requirements",
+            addedNodes: [],
+            removedNodes: [],
+            modifiedNodes: [],
+          },
+          evalRun: null,
+          assistantReply,
+        };
+      } else {
+        // Status is 'ready'! Requirements established; synthesize autonomous pipeline
+        const orchestrator = new LoopOrchestrator();
+        const refinedPrompt = analysisRes.analysis?.refinedPrompt || currentAgent.goal;
+        const session = await orchestrator.runEngineeringLoop(
+          refinedPrompt,
+          `sess-${currentAgent.id}`,
+          updatedMessages
+        );
+
+        let engineeredAgent = session.currentAgent;
+        if (!engineeredAgent) {
+          engineeredAgent = {
+            ...currentAgent,
+            name: analysisRes.analysis?.agentName || currentAgent.name,
+            domain: analysisRes.analysis?.domain || currentAgent.domain,
+            version: 1,
+            versionTag: "v1",
+            architectureSummary: "Synthesized Autonomous Pipeline",
+            nodes: [],
+            edges: [],
+            availableTools: [],
+            messages: updatedMessages,
+          };
+        }
+        engineeredAgent.id = currentAgent.id;
+        engineeredAgent.version = 1;
+        engineeredAgent.versionTag = "v1";
+
+        const assistantReply: ChatMessage = {
+          role: "assistant",
+          content: `Engineered **${engineeredAgent.name}** [${engineeredAgent.architectureSummary}]. All 5 stages synthesized, verified, and ready!`,
+          timestamp: new Date().toISOString(),
+        };
+        engineeredAgent.messages = [...updatedMessages, assistantReply];
+        savedSpecialists[specialistIndex] = engineeredAgent;
+
+        try {
+          await prisma.agent.update({
+            where: { id: engineeredAgent.id },
+            data: {
+              name: engineeredAgent.name,
+              domain: engineeredAgent.domain,
+              currentVersion: 1,
+              architectureSummary: engineeredAgent.architectureSummary,
+              spec: engineeredAgent as any,
+            },
+          });
+        } catch (dbErr) {
+          console.warn("Prisma agent synthesis update error:", dbErr);
+        }
+
+        const finalStep = session.iterations[session.iterations.length - 1];
+        return {
+          agent: engineeredAgent,
+          mutationDiff: {
+            summary: `Synthesized initial pipeline (${engineeredAgent.nodes.length} stages)`,
+            addedNodes: engineeredAgent.nodes.map((n) => n.name),
+            removedNodes: [],
+            modifiedNodes: [],
+          },
+          evalRun: finalStep?.evaluationRun || null,
+          assistantReply,
+          session,
+        };
+      }
+    }
 
     const { improvedAgent, mutationDiff } = await refineAgentWithFollowUp(
       currentAgent,

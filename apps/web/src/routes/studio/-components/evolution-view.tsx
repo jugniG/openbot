@@ -80,14 +80,14 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const configuredEnvCount = Object.keys(agent.envs || {}).length
   const requiresEnvs =
     (agent.requiredEnvs && agent.requiredEnvs.length > 0) ||
-    agent.nodes.some(
+    agent.nodes?.some(
       (n) =>
         n.parameters?.channel === 'slack' ||
         n.parameters?.channel === 'discord' ||
         n.parameters?.channel === 'sendgrid' ||
         n.name.toLowerCase().includes('slack') ||
         n.name.toLowerCase().includes('discord') ||
-        n.assignedTools.some((t) =>
+        n.assignedTools?.some((t) =>
           [
             'tool-github-api',
             'tool-twitter-x',
@@ -100,8 +100,8 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     )
   const hasEnvs = configuredEnvCount > 0 || requiresEnvs
 
-  const triggerNode = agent.nodes.find((n) => n.type === 'trigger')
-  const actionNode = agent.nodes.find(
+  const triggerNode = agent.nodes?.find((n) => n.type === 'trigger')
+  const actionNode = agent.nodes?.find(
     (n) => n.type === 'action' || n.name.toLowerCase().includes('email') || n.name.toLowerCase().includes('dispatch')
   )
   const conversationText =
@@ -147,7 +147,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       terminalLogs: [
         `[00:00:01] [INFO]  ⚡ Spawning ephemeral sandbox (sbx-789a12)...`,
         `[00:00:01] [INFO]  🔒 Hardware-isolated runtime active (Linux 6.6, 1vCPU, 2GB RAM)`,
-        `[00:00:01] [STAGE] 📦 Ingesting agent DAG: "${agent.name}" (${agent.nodes.length} connected nodes)`,
+        `[00:00:01] [STAGE] 📦 Ingesting agent DAG: "${agent.name}" (${agent.nodes?.length || 0} connected nodes)`,
         `[00:00:02] [STAGE] ▶ Stage 1 (${triggerNode?.name || 'Initiation'}): Trigger: ${triggerDisplayText}`,
         `[00:00:02] [TOOL]  ▶ Stage 2: Dispatched tool integrations and platform scrapers`,
         `[00:00:03] [STAGE] ▶ Stage 3: LLM reasoning, schema validation, and deduplication passed`,
@@ -159,12 +159,12 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         exitCode: 0,
         sandboxId: 'sbx-789a12',
         durationMs: 420,
-        nodesExecuted: agent.nodes.length,
+        nodesExecuted: agent.nodes?.length || 0,
         trigger: triggerDisplayText,
         actionTarget: recipientEmail,
-        summary: `Autonomous run completed across all ${agent.nodes.length} stages with zero execution errors.`,
+        summary: `Autonomous run completed across all ${agent.nodes?.length || 0} stages with zero execution errors.`,
       },
-      nodeGraphSnapshot: [...agent.nodes],
+      nodeGraphSnapshot: agent.nodes ? [...agent.nodes] : [],
     },
     {
       id: 'run-8910',
@@ -194,10 +194,10 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         exitCode: 0,
         sandboxId: 'sbx-342b99',
         durationMs: 385,
-        nodesExecuted: agent.nodes.length,
+        nodesExecuted: agent.nodes?.length || 0,
         trigger: triggerDisplayText,
       },
-      nodeGraphSnapshot: [...agent.nodes],
+      nodeGraphSnapshot: agent.nodes ? [...agent.nodes] : [],
     },
   ]
 
@@ -347,6 +347,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                 {agent.name}
               </span>
               <span className="inline-flex items-center gap-1 text-[9px] font-mono text-emerald-400 font-semibold px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 Ready
               </span>
             </div>
@@ -393,6 +394,27 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                   >
                     {m.content}
                   </div>
+
+                  {/* Interactive Quick Suggestion Chips */}
+                  {m.quickSuggestions && m.quickSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {m.quickSuggestions.map((sug, sIdx) => (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          onClick={() => {
+                            if (!isRefining && onRefineAgent) {
+                              onRefineAgent(sug)
+                            }
+                          }}
+                          disabled={isRefining}
+                          className="px-2.5 py-1 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-[11px] font-medium transition-colors cursor-pointer"
+                        >
+                          {sug}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Separate Component: Prompt for Environment Variables when Agent Asks */}
                   {m.role === 'assistant' && (() => {
@@ -444,7 +466,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           </div>
 
           {/* Modern Chat Composer Input */}
-          <div className="p-3 border-t border-border bg-card/40 shrink-0">
+          <div className="p-3 pt-1 shrink-0">
             <div className="rounded-xl bg-background border border-white/20 focus-within:border-white/60 focus-within:ring-2 focus-within:ring-white/10 shadow-xs transition-all flex flex-col">
               <textarea
                 ref={textareaRef}
@@ -499,6 +521,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               >
                 <RiNodeTree className="w-3.5 h-3.5 text-primary" />
                 <span>Pipeline</span>
+                <span className="text-[10px] font-mono px-1 rounded-full bg-primary/10 text-primary font-bold">
+                  {agent.nodes?.length || 0}
+                </span>
               </button>
 
               <button
@@ -615,69 +640,77 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
                     {/* Vercel-style Runs Table */}
                     <div className="flex-1 overflow-y-auto rounded-xl border border-border bg-card">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead className="sticky top-0 bg-muted/60 backdrop-blur-xs border-b border-border text-[10px] font-mono text-muted-foreground uppercase">
-                          <tr>
-                            <th className="py-2.5 px-3 font-semibold">Status</th>
-                            <th className="py-2.5 px-3 font-semibold">Execution ID</th>
-                            <th className="py-2.5 px-3 font-semibold">Trigger</th>
-                            <th className="py-2.5 px-3 font-semibold">Task Query</th>
-                            <th className="py-2.5 px-3 font-semibold">Sandbox ID</th>
-                            <th className="py-2.5 px-3 font-semibold">Duration</th>
-                            <th className="py-2.5 px-3 font-semibold text-right">Age</th>
-                            <th className="py-2.5 px-3 text-right"></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/60">
-                          {filteredRuns.map((r) => (
-                            <tr
-                              key={r.id}
-                              onClick={() => setOpenedRunId(r.id)}
-                              className="group hover:bg-muted/40 cursor-pointer transition-colors"
-                            >
-                              <td className="py-3 px-3 whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center gap-1.5 text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
-                                    r.status === 'COMPLETED'
-                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                  }`}
-                                >
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full ${
-                                      r.status === 'COMPLETED' ? 'bg-emerald-400' : 'bg-rose-400'
-                                    }`}
-                                  />
-                                  {r.status === 'COMPLETED' ? '200 OK' : '500 ERR'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 font-mono font-bold text-primary whitespace-nowrap">
-                                #{r.id}
-                              </td>
-                              <td className="py-3 px-3 whitespace-nowrap">
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-                                  {r.triggerType}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 max-w-[200px] truncate text-foreground/90 font-medium">
-                                {r.query}
-                              </td>
-                              <td className="py-3 px-3 font-mono text-muted-foreground whitespace-nowrap text-[11px]">
-                                {r.sandboxId}
-                              </td>
-                              <td className="py-3 px-3 font-mono text-muted-foreground whitespace-nowrap text-[11px]">
-                                {r.durationMs}ms
-                              </td>
-                              <td className="py-3 px-3 text-muted-foreground whitespace-nowrap text-right text-[11px]">
-                                {r.timeAgo}
-                              </td>
-                              <td className="py-3 px-3 text-right">
-                                <RiArrowRightSLine className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors inline-block" />
-                              </td>
+                      {filteredRuns.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-xs text-muted-foreground h-48">
+                          <RiPlayCircleLine className="w-8 h-8 mb-2 opacity-30 text-muted-foreground" />
+                          <p className="font-semibold text-foreground">No execution runs yet</p>
+                          <p className="mt-1 max-w-xs leading-relaxed">
+                            Run the agent to view execution telemetry and MicroVM sandbox logs.
+                          </p>
+                        </div>
+                      ) : (
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead className="sticky top-0 bg-muted/60 backdrop-blur-xs border-b border-border text-[10px] font-mono text-muted-foreground uppercase">
+                            <tr>
+                              <th className="py-2.5 px-3 font-semibold">Status</th>
+                              <th className="py-2.5 px-3 font-semibold">Execution ID</th>
+                              <th className="py-2.5 px-3 font-semibold">Trigger</th>
+                              <th className="py-2.5 px-3 font-semibold">Task Query</th>
+                              <th className="py-2.5 px-3 font-semibold">Sandbox ID</th>
+                              <th className="py-2.5 px-3 font-semibold">Duration</th>
+                              <th className="py-2.5 px-3 font-semibold text-right">Age</th>
+                              <th className="py-2.5 px-3 text-right"></th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-border/60">
+                            {filteredRuns.map((r) => (
+                              <tr
+                                key={r.id}
+                                onClick={() => setOpenedRunId(r.id)}
+                                className="group hover:bg-muted/40 cursor-pointer transition-colors"
+                              >
+                                <td className="py-3 px-3 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full border ${
+                                      r.status === 'COMPLETED'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        r.status === 'COMPLETED' ? 'bg-emerald-400' : 'bg-rose-400'
+                                      }`}
+                                    />
+                                    {r.status === 'COMPLETED' ? 'Success' : 'Failed'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 font-mono font-medium text-foreground whitespace-nowrap">
+                                  {r.id}
+                                </td>
+                                <td className="py-3 px-3 text-muted-foreground whitespace-nowrap">
+                                  <span className="font-mono text-[11px]">{r.triggerType}</span>
+                                </td>
+                                <td className="py-3 px-3 text-foreground font-medium max-w-xs truncate">
+                                  {r.query}
+                                </td>
+                                <td className="py-3 px-3 font-mono text-muted-foreground whitespace-nowrap text-[11px]">
+                                  {r.sandboxId}
+                                </td>
+                                <td className="py-3 px-3 font-mono text-muted-foreground whitespace-nowrap text-[11px]">
+                                  {r.durationMs}ms
+                                </td>
+                                <td className="py-3 px-3 text-muted-foreground whitespace-nowrap text-right text-[11px]">
+                                  {r.timeAgo}
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <RiArrowRightSLine className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors inline-block" />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </div>
                 ) : (

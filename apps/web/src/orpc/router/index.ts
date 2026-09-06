@@ -22,6 +22,7 @@ import {
   getSpecialist,
   runSpecialistExecution,
   clarifyOrAnalyzeGoal,
+  initiateAgentChat,
   refineSpecialist,
   saveAgentEnv,
   deleteAgentEnv,
@@ -48,6 +49,7 @@ export default {
   },
   engineer: {
     clarifyOrAnalyzeGoal,
+    initiateAgentChat,
     startEngineeringSession,
     getSession,
     listSpecialists,
